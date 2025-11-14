@@ -1,0 +1,29 @@
+# ==============================================================================
+# Script:           methylation_preproc.yaml
+# Purpose:          DNA methylation downloading and preprocessing configurations
+# Author:           Sophia Li
+# Affiliation:      CCG Lab, Princess Margaret Cancer Center, UHN, UofT
+# Date:             11/14/2025
+# ==============================================================================
+
+# =====| Data Downloading |=====================================================
+
+# Absolute path to the data directory; initializes data folder per project
+data_dir: ./data/raw
+metadata_dir: ./data/metadata
+
+# Projects to download methylation data for; initializes data folder per project
+projects:
+  - TCGA-BRCA
+
+# Metadata fields/columns to fetch from the GDC API; order of list is preserved
+metadata_fields: 
+  - file_id
+  - file_name
+  - submitter_id
+  - case_id
+  - primary_site
+  - sample_type
+  - disease_type
+  - diagnoses.vital_status
+
