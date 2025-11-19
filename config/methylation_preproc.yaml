@@ -7,25 +7,28 @@
 # ==============================================================================
 
 # =====| Data Downloading |=====================================================
+download:
 
-# Absolute path to the data directory; initializes data folder per project
-data_dir: ./data/raw
-metadata_dir: ./data/metadata
+  # Path to the output data directories; initializes data folder per project
+  raw_data_dir: ./data/raw
+  metadata_dir: ./data/metadata
 
-# Projects to download methylation data for; initializes data folder per project
-projects:
-  - TCGA-BRCA
+  # Metadata fields to fetch from the GDC API; order of list is preserved
+  metadata_fields:
+    - file_id
+    - file_name
+    - data_category
+    - data_type
+    - platform
+    - state
+    - cases.submitter_id
+    - cases.case_id
+    - cases.samples.primary_site
+    - cases.samples.sample_type
+    - cases.disease_type
 
-# Metadata fields/columns to fetch from the GDC API; order of list is preserved
-metadata_fields:
-  - file_id
-  - file_name
-  - data_category
-  - data_type
-  - platform
-  - state
-  - cases.submitter_id
-  - cases.case_id
-  - cases.samples.primary_site
-  - cases.samples.sample_type
-  - cases.disease_type
+# =====| Data Preprocessing |===================================================
+preprocess:
+
+  # Path to the output data directories; initializes data folder per project
+  processed_data_dir: ./data/processed
