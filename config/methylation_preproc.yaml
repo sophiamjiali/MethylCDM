@@ -17,13 +17,15 @@ projects:
   - TCGA-BRCA
 
 # Metadata fields/columns to fetch from the GDC API; order of list is preserved
-metadata_fields: 
+metadata_fields:
   - file_id
   - file_name
-  - submitter_id
-  - case_id
-  - primary_site
-  - sample_type
-  - disease_type
-  - diagnoses.vital_status
-
+  - data_category
+  - data_type
+  - platform
+  - state
+  - cases.submitter_id
+  - cases.case_id
+  - cases.samples.primary_site
+  - cases.samples.sample_type
+  - cases.disease_type
