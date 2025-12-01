@@ -4,28 +4,18 @@
 # Author:           Sophia Li
 # Affiliation:      CCG Lab, Princess Margaret Cancer Center, UHN, UofT
 # Date:             11/14/2025
+#
+# Notes:            If paths reference outside the project directory, provide
+#                   their absolute paths. Else, if they exist within the project
+#                   root, provide only the file or directory name.
 # ==============================================================================
 
 # =====| Data Downloading |=====================================================
 download:
 
   # Path to the output data directories; initializes data folder per project
-  raw_data_dir: ./data/raw
-  metadata_dir: ./data/metadata
-
-  # Metadata fields to fetch from the GDC API; order of list is preserved
-  metadata_fields:
-    - file_id
-    - file_name
-    - data_category
-    - data_type
-    - platform
-    - state
-    - cases.submitter_id
-    - cases.case_id
-    - cases.samples.primary_site
-    - cases.samples.sample_type
-    - cases.disease_type
+  raw_data_dir: raw
+  metadata_dir: metadata
 
 # =====| Data Preprocessing |===================================================
 preprocess:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ==============================================================================
-# Script:           preprocess_methylation.py
+# Script:           process_methylation.py
 # Purpose:          Entry-point to download and preprocess DNA methylation data
 #                   for a specified project
 # Author:           Sophia Li
@@ -15,11 +15,13 @@
 # ==============================================================================
 
 import argparse
-import sys
 import os
 
-from src.utils.utils import init_environment, load_config
-from src.data.load_methylation import download_methylation, load_raw_methylation
+from MethylCDM.utils.utils import init_environment, load_config
+from MethylCDM.data.load_methylation import (
+    download_methylation, 
+    load_raw_methylation
+)
 
 def main():
 
