@@ -1,16 +1,30 @@
 # Developer Logs
 
+## DNA Methylation Workflow
+- pandas, numpy, parquet, anndata, pycombat (combat batch correction)
+1. raw per-file TCGA downloads
+2. load all files
+3. harmonize sample barcodes
+4. concatenate into a CpG x sample matrix, save
+5. Perform probe QC / sample QC on the full matrix
+6. Perform beta value imputation
+7. Normalize beta values (optional)
+8. Save final cohort-level matrix
+
+
 ### 11/30/2025 - Log 6:
 
 ### 11/25/2025 - Log 5:
 - downloaded TCGA-BRCA methylation data (~12 GB)
 - removed metadata fields from configurations, standardized to `src/MethylCDM/constants.py`
     - too complicated to normalize the nested fields, better for downstream analysis
+- user will have to provide SNP, cross-reactive, and sex chromosome probe annotations
+- built structure for preprocessing workflow; need to download probe annotation manifests
 
 ### 11/22/2025 - Log 4:  gdc-client blew up my laptop
 - renamed `preprocess_*` to just `process_*`
 - moved `src/*` to `src/MethylCDM` for better align to importing standards 
-- subsequently renamed project root to `MethylCDM-project` to prevent namespace shadowing
+- subsequently renamed project root to `MethylCDM-project` to prevent namespace shadowingW
 - changed all pathing to support both absolute and relative; added `src/MethylCDM/constants.py`
 - specified that users should download the GDC Data Transfer Tool and place it in `tools/`
     - need to update README to provide instructions for this

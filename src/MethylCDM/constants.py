@@ -15,16 +15,33 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Compute default paths
 CONFIG_DIR = PROJECT_ROOT / "config"
-DATA_DIR = PROJECT_ROOT / "data"
 
 # Compute the GDC-Client path
 GDC_CLIENT_PATH = PROJECT_ROOT / "tools/gdc-client"
 
+# =====| Data Directory |=======================================================
+
+DATA_DIR = PROJECT_ROOT / "data"
+
+RAW_METHYLATION_DIR = DATA_DIR / "raw" / "methylation"
+INTERMEDIATE_METHYLATION_DIR = DATA_DIR / "intermediate" / "methylation"
+PROCESSED_METHYLATION_DIR = DATA_DIR / "processed" / "methylation"
+METADATA_METHYLATION_DIR = DATA_DIR / "metadata" / "methylation"
+
+RAW_WSI_DIR = DATA_DIR / "raw" / "wsi"
+INTERMEDIATE_WSI_DIR = DATA_DIR / "intermediate" / "wsi"
+PROCESSED_WSI_DIR = DATA_DIR / "processed" / "wsi"
+METADATA_WSI_DIR = DATA_DIR / "metadata" / "wsi"
+
+# =====| Probe Annotations |====================================================
+
+ANNOTATION_27K = DATA_DIR / "manifests" / "IlluminaHumanMethylation450.csv"
+ANNOTATION_450K = DATA_DIR / "manifests" / "IlluminaHumanMethylation27.csv"
 
 # =====| GDC Metadata |=========================================================
 
 # Define DNA Methylation metadata fields
-METHYLATION_METADATA = [
+METADATA_METHYLATION = [
 
     # File-Level Metadata
     "project.project_id",

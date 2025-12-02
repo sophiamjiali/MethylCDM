@@ -10,7 +10,6 @@
 
 import random
 import numpy as np
-import pandas as pd
 import torch
 import yaml
 from pathlib import Path
@@ -33,10 +32,6 @@ def resolve_path(path_str, default_path):
     Returns
     -------
     path (Path): resolved Path object from pathlib
-
-    Raises
-    ------
-    FileNotFoundError: if the file does not exist at the specified path
     """
 
     # Resolve to the project's root if the provided path is not absolute

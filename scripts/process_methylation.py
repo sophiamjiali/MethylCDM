@@ -17,10 +17,13 @@
 import argparse
 import os
 
-from MethylCDM.utils.utils import init_environment, load_config
-from MethylCDM.data.load_methylation import (
-    download_methylation, 
-    load_raw_methylation
+from MethylCDM.utils.utils import init_environment, load_config, resolve_path
+from MethylCDM.data.load_methylation import download_methylation, merge_cohort
+from MethylCDM.preprocessing.process_methylation import process_methylation
+from MethylCDM.constants import (
+    RAW_METHYLATION_DIR, 
+    INTERMEDIATE_METHYLATION_DIR,
+    PROCESSED_METHYLATION_DIR
 )
 
 def main():
@@ -46,20 +49,30 @@ def main():
 
     # Check to see if DNA methylation data needs to be downloaded
     raw_data_dir = preproc_cfg.get('download', {}).get('raw_data_dir', '')
-    project_raw_dir = os.path.join(
-        raw_data_dir, f"{args.project}_raw_methylation"
-    )
+    raw_data_dir = resolve_path(raw_data_dir, RAW_METHYLATION_DIR)
+    project_raw_dir = os.path.join(raw_data_dir, args.project)
 
     if not os.listdir(project_raw_dir):
         download_methylation(args.project, preproc_cfg, args.verbose)
 
-    # Load the downloaded methylation data as a list of DataFrames (per project)
-    data = load_raw_methylation(args.project, preproc_cfg, args.verbose)
+    # Load the methylation data and merge it into a cohort-level matrix
+    cpg_matrix = merge_cohort(args.project, preproc_cfg)
+
+    inter_data_dir = (preproc_cfg.get('preprocess', {})
+                                 .get('imtermediate_data_dir', ''))
+    inter_data_dir = resolve_path(inter_data_dir, INTERMEDIATE_METHYLATION_DIR)
+    inter_file = os.path.join(inter_data_dir, 
+                              f"{args.project}_cpg_matrix_raw.parquet")
+
+    cpg_matrix.to_parquet(inter_file) 
 
     # -----| Data Preprocessing |-----
+    cpg_matrix = process_methylation(cpg_matrix)
 
-    # preprocess data
+    proc_data_dir = (preproc_cfg.get('preprocess', {})
+                               .get('processed_data_dir', ''))
+    proc_data_dir = resolve_path(proc_data_dir, PROCESSED_METHYLATION_DIR)
+    proc_file = os.path.join(proc_data_dir, 
+                             f"{args.project}_cpg_matrix_processed.parquet")
 
-    # -----| Saving Preprocessed Data |-----
-
-    # save preprocessed data
+    cpg_matrix.to_parquet(proc_file)
