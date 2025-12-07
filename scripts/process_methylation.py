@@ -14,6 +14,7 @@
 #                   partial downloads
 # ==============================================================================
 
+import pandas as pd
 import argparse
 import os
 
@@ -23,7 +24,8 @@ from MethylCDM.preprocessing.process_methylation import process_methylation
 from MethylCDM.constants import (
     RAW_METHYLATION_DIR, 
     INTERMEDIATE_METHYLATION_DIR,
-    PROCESSED_METHYLATION_DIR
+    PROCESSED_METHYLATION_DIR,
+    METADATA_METHYLATION_DIR
 )
 
 def main():
@@ -67,7 +69,8 @@ def main():
     cpg_matrix.to_parquet(inter_file) 
 
     # -----| Data Preprocessing |-----
-    cpg_matrix = process_methylation(cpg_matrix)
+    metadata = pd.read_csv(METADATA_METHYLATION_DIR)
+    cpg_matrix = process_methylation(cpg_matrix, metadata, preproc_cfg)
 
     proc_data_dir = (preproc_cfg.get('preprocess', {})
                                .get('processed_data_dir', ''))

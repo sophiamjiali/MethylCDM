@@ -24,10 +24,6 @@ preprocess:
   intermediate_data_dir: data/intermediate/methylation
   processed_data_dir: data/processed/methylation
 
-  # Path to probe annotation manifests
-  annotation_27k: data/manifests/IlluminaHumanMethylation450.csv
-  annotation_450k: data/manifests/IlluminaHumanMethylation27.csv
-
   # Toggles for performing preprocessing
   toggle_sample_filtering: True
   toggle_probe_filtering: True
@@ -38,6 +34,3 @@ preprocess:
 
   # Minimum number of missing values to omit a CpG (QC)
   max_missing_probe: 0.05
-
-  # Number of neighbours for KNN imputation
-  n_neighbours: 5

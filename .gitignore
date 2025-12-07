@@ -1,5 +1,7 @@
 # all data files
 data/
+resources/
+tools/
 
 # macOS
 .DS_Store

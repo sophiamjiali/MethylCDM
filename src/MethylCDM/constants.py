@@ -35,8 +35,10 @@ METADATA_WSI_DIR = DATA_DIR / "metadata" / "wsi"
 
 # =====| Probe Annotations |====================================================
 
-ANNOTATION_27K = DATA_DIR / "manifests" / "IlluminaHumanMethylation450.csv"
-ANNOTATION_450K = DATA_DIR / "manifests" / "IlluminaHumanMethylation27.csv"
+RESOURCES_DIR = PROJECT_ROOT / "resources"
+ANNOTATION_27K = RESOURCES_DIR / "IlluminaHumanMethylation450.csv"
+ANNOTATION_450K = RESOURCES_DIR / "IlluminaHumanMethylation27.csv"
+ANNOTATION_EPIC = None # empty for now
 
 # =====| GDC Metadata |=========================================================
 

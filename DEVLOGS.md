@@ -1,5 +1,12 @@
 # Developer Logs
 
+## Current TO-DO
+- currently bugfixing in `notebooks/process_methylation.ipynb`
+- working through cleaning the methylation data after downloading
+- assign internal IDs? clean up the file name?
+- goal of the function is to clean the downloaded data and convert to parquet, deleting everything else
+- afterwords, bugfix preprocessing (implementation is done)
+
 ## DNA Methylation Workflow
 - pandas, numpy, parquet, anndata, pycombat (combat batch correction)
 1. raw per-file TCGA downloads
@@ -12,7 +19,11 @@
 8. Save final cohort-level matrix
 
 
-### 11/30/2025 - Log 6:
+### 12/06/2025 - Log 6: 
+- created resource folder for package-provided data; downloaded and added DNA methylation annotation manifests to the package
+- filtered methylation for common probes across manifests, then used larger manifest (i.e. 450 versus 27) as a proxy to get annotations if missing (i.e. SNP)
+- finished implementing preprocessing pipeline, needs debugging
+- added cleaning step to parse downloaded data and convert to just parquets
 
 ### 11/25/2025 - Log 5:
 - downloaded TCGA-BRCA methylation data (~12 GB)
