@@ -1,23 +1,11 @@
 # Developer Logs
 
 ## Current TO-DO
-- currently bugfixing in `notebooks/process_methylation.ipynb`
-- working through cleaning the methylation data after downloading
-- assign internal IDs? clean up the file name?
-- goal of the function is to clean the downloaded data and convert to parquet, deleting everything else
-- afterwords, bugfix preprocessing (implementation is done)
+- bugfix `process_methylation()`
 
-## DNA Methylation Workflow
-- pandas, numpy, parquet, anndata, pycombat (combat batch correction)
-1. raw per-file TCGA downloads
-2. load all files
-3. harmonize sample barcodes
-4. concatenate into a CpG x sample matrix, save
-5. Perform probe QC / sample QC on the full matrix
-6. Perform beta value imputation
-7. Normalize beta values (optional)
-8. Save final cohort-level matrix
-
+### 12/16/2025 - Log 7:
+- finished bugfixing `download_methylation()`, `clean_methylation_data()`, and `merge_cohort()` for downloading and cleaning logic
+- next, move onto `process_methylation()`
 
 ### 12/06/2025 - Log 6: 
 - created resource folder for package-provided data; downloaded and added DNA methylation annotation manifests to the package

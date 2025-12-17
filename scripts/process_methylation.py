@@ -15,12 +15,16 @@
 # ==============================================================================
 
 import pandas as pd
+from pathlib import Path
 import argparse
 import os
 
 from MethylCDM.utils.utils import init_environment, load_config, resolve_path
 from MethylCDM.data.load_methylation import download_methylation, merge_cohort
-from MethylCDM.preprocessing.process_methylation import process_methylation
+from MethylCDM.preprocessing.process_methylation import (
+    process_methylation,
+    clean_methylation_data
+)
 from MethylCDM.constants import (
     RAW_METHYLATION_DIR, 
     INTERMEDIATE_METHYLATION_DIR,
@@ -47,25 +51,29 @@ def main():
     # Initialize the environment for reproducible analysis
     init_environment(pipeline_cfg)
 
-    # -----| Data Downloading and Loading |-----
+    # -----| Data Downloading, Loading, and Cleaning |-----
 
     # Check to see if DNA methylation data needs to be downloaded
     raw_data_dir = preproc_cfg.get('download', {}).get('raw_data_dir', '')
     raw_data_dir = resolve_path(raw_data_dir, RAW_METHYLATION_DIR)
     project_raw_dir = os.path.join(raw_data_dir, args.project)
+    Path(project_raw_dir).mkdir(parents = True, exist_ok = True)
 
     if not os.listdir(project_raw_dir):
         download_methylation(args.project, preproc_cfg, args.verbose)
+        clean_methylation_data(project_raw_dir)
 
     # Load the methylation data and merge it into a cohort-level matrix
     cpg_matrix = merge_cohort(args.project, preproc_cfg)
 
     inter_data_dir = (preproc_cfg.get('preprocess', {})
-                                 .get('imtermediate_data_dir', ''))
+                                 .get('intermediate_data_dir', ''))
     inter_data_dir = resolve_path(inter_data_dir, INTERMEDIATE_METHYLATION_DIR)
-    inter_file = os.path.join(inter_data_dir, 
-                              f"{args.project}_cpg_matrix_raw.parquet")
+    project_inter_dir = os.path.join(inter_data_dir, args.project)
+    Path(project_inter_dir).mkdir(parents = True, exist_ok = True)
 
+    inter_file = os.path.join(project_inter_dir, 
+                              f"{args.project}_cpg_matrix_raw.parquet")
     cpg_matrix.to_parquet(inter_file) 
 
     # -----| Data Preprocessing |-----
