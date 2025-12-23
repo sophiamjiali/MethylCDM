@@ -51,7 +51,8 @@ def main():
     # Initialize the environment for reproducible analysis
     init_environment(pipeline_cfg)
 
-    # -----| Data Downloading, Loading, and Cleaning |-----
+
+    # -----| Data Downloading and Cleaning |-----
 
     # Check to see if DNA methylation data needs to be downloaded
     raw_data_dir = preproc_cfg.get('download', {}).get('raw_data_dir', '')
@@ -63,27 +64,21 @@ def main():
         download_methylation(args.project, preproc_cfg, args.verbose)
         clean_methylation_data(project_raw_dir)
 
-    # Load the methylation data and merge it into a cohort-level matrix
-    cpg_matrix = merge_cohort(args.project, preproc_cfg)
-
-    inter_data_dir = (preproc_cfg.get('preprocess', {})
-                                 .get('intermediate_data_dir', ''))
-    inter_data_dir = resolve_path(inter_data_dir, INTERMEDIATE_METHYLATION_DIR)
-    project_inter_dir = os.path.join(inter_data_dir, args.project)
-    Path(project_inter_dir).mkdir(parents = True, exist_ok = True)
-
-    inter_file = os.path.join(project_inter_dir, 
-                              f"{args.project}_cpg_matrix_raw.parquet")
-    cpg_matrix.to_parquet(inter_file) 
 
     # -----| Data Preprocessing |-----
-    metadata = pd.read_csv(METADATA_METHYLATION_DIR)
-    cpg_matrix = process_methylation(cpg_matrix, metadata, preproc_cfg)
+    metadata_dir = preproc_cfg.get('download', {}).get('metadata_dir', '')
+    metadata_dir = resolve_path(metadata_dir, METADATA_METHYLATION_DIR)
+    project_metadata = os.path.join(metadata_dir, args.project,
+                                    f"{args.project}_metadata.csv")
+    metadata = pd.read_csv(project_metadata)
+    
+    # Preprocess the CpG matrix, outputting a gene-level matrix
+    gene_matrix = process_methylation(args.project, metadata, preproc_cfg)
 
     proc_data_dir = (preproc_cfg.get('preprocess', {})
                                .get('processed_data_dir', ''))
     proc_data_dir = resolve_path(proc_data_dir, PROCESSED_METHYLATION_DIR)
     proc_file = os.path.join(proc_data_dir, 
-                             f"{args.project}_cpg_matrix_processed.parquet")
+                             f"{args.project}_gene_matrix.parquet")
 
-    cpg_matrix.to_parquet(proc_file)
+    gene_matrix.to_parquet(proc_file)

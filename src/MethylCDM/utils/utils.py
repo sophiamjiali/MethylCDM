@@ -62,72 +62,39 @@ def build_meta_fields(fields):
                 meta.append(parts)
     return meta
 
-def load_annotations(manifests):
-    """
-    Loads and returns the dominant Illumina methylation manifest
-    (EPIC > 450K > 27K) out of the manifests present in the dataset as
-    provided by `manifests`, standardizing columns for quality control. 
+def load_annotations(array_type):
 
-    Parameters
-    ----------
-    manifests (list): list of strings of manifests present in the dataset
-
-    Returns
-    -------
-    (DataFrame): the dominant manifest present in `manifests`
-
-    Raises
-    ------
-    ValueError: if no viable manifest was provided
-    """
-    
-    # Fetch the dominant manifest present in `manifests`
-    if ("Illumina Human Methylation EPIC" in manifests):
-        manifest = pd.read_csv(ANNOTATION_EPIC)
-    elif ("Illumina Human Methylation 450" in manifests):
-        manifest = pd.read_csv(ANNOTATION_450K)
-    elif ("Illumina Human Methylation 27" in manifests):
-        manifest = pd.read_csv(ANNOTATION_27K)
+    if (array_type == "Illumina Human Methylation EPIC"):
+        annotation = pd.read_csv(ANNOTATION_EPIC)
+    elif (array_type == "Illumina Human Methylation 450"):
+        annotation = pd.read_csv(ANNOTATION_450K)
+    elif (array_type == "Illumina Human Methylation 27"):
+        annotation = pd.read_csv(ANNOTATION_27K)
     else:
         raise ValueError ("No valid manifest provided in `manifests`.")
     
-    # Standardize column names, ignoring if they are missing
-    col_map = {
-        "ID": "probe_id",
-        "IlmnID": "probe_id",
-        "CHR": "chr",
-        "Chromosome": "chr",
-        "MAPINFO": "pos",
-        "Coordinate_37": "pos",
-        "STRAND": "strand",
-        "Strand": "strand",
-        "Type": "probe_type",
-        "Infinium_Design_Type": "probe_type",
-        "Relation_to_UCSC_CpG_Island": "island",
-        "Relation_to_Island": "island",
-        "SNP_ID": "is_snp",
-        "Probe_SNPs": "is_snp",
-        "MASK_general": "is_cross_reactive",
-        "MASK_crosshyb": "is_cross_reactive",
-    }
-    manifest.rename(columns = {
-        k: v for k, v in col_map.items() if k in manifest.columns
-    }, inplace = True)
+    return annotation
 
-    # Fill any missing values with NA (i.e. if data was not available)
-    manifest["is_snp"] = manifest.get(
-        "is_snp", pd.Series([False] * len(manifest))
-    )
-    manifest["is_cross_reactive"] = manifest.get(
-        "is_cross_reactive", pd.Series([False] * len(manifest))
-    )
+def load_beta_file(path):
+    """
+    Loads a singles-sample beta value .parquet file with two unlabeled columns 
+    representing the CpG probe ID and its corresponding beta value. 
 
-    # Reduce the manifest to the standardized set
-    keep_cols = ["probe_id", "chr", "pos", "strand", "probe_type", 
-                 "island","is_snp", "is_cross_reactive"]
-    
-    return manifest[keep_cols]
-    
+    Parameters
+    ----------
+    path (str): path to a .parquet file containing beta values
+
+    Returns 
+    -------
+    beta_values (DataFrame): a dataframe of CpGs x Sample ID
+    """
+
+    beta_values = pd.read_parquet(path)
+    beta_values.columns = ["CpG_ID", "beta_value"]
+    beta_values = beta_values.set_index("CpG_ID")
+    beta_values.columns = [path.stem]
+    beta_values[path.stem] = beta_values[path.stem].astype("float32")
+    return beta_values
 
 # =====| Configuration & Environment |==========================================
 

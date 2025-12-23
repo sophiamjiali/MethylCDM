@@ -24,7 +24,6 @@ GDC_CLIENT_PATH = PROJECT_ROOT / "tools/gdc-client"
 DATA_DIR = PROJECT_ROOT / "data"
 
 RAW_METHYLATION_DIR = DATA_DIR / "raw" / "methylation"
-INTERMEDIATE_METHYLATION_DIR = DATA_DIR / "intermediate" / "methylation"
 PROCESSED_METHYLATION_DIR = DATA_DIR / "processed" / "methylation"
 METADATA_METHYLATION_DIR = DATA_DIR / "metadata" / "methylation"
 
@@ -36,9 +35,9 @@ METADATA_WSI_DIR = DATA_DIR / "metadata" / "wsi"
 # =====| Probe Annotations |====================================================
 
 RESOURCES_DIR = PROJECT_ROOT / "resources"
-ANNOTATION_27K = RESOURCES_DIR / "IlluminaHumanMethylation450.csv"
-ANNOTATION_450K = RESOURCES_DIR / "IlluminaHumanMethylation27.csv"
-ANNOTATION_EPIC = None # empty for now
+ANNOTATION_27K = RESOURCES_DIR / "illumina27k_annotation_hg19.csv"
+ANNOTATION_450K = RESOURCES_DIR / "illumina450k_annotation_hg19.csv"
+ANNOTATION_EPIC = RESOURCES_DIR / "illuminaEPIC_annotation_hg19.csv"
 
 # =====| GDC Metadata |=========================================================
 

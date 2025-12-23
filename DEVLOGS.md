@@ -1,7 +1,16 @@
 # Developer Logs
 
 ## Current TO-DO
-- bugfix `process_methylation()`
+- bugfix `process_methylation()` for-loop for processing per array type
+
+### 12/23/2025 - Log 9:
+- consolidated cross-reactive, SNP, and Illumina annotations in `resources/`
+- bugfixed `process_array_methylation()`, need to do a final runthrough of the for-loop in `process_methylation()`
+- need to bugfix anndata initializing, then move onto beta-VAE architecture and training logic
+
+### 12/22/2025 - Log 8:
+- refactored the preprocessing pipeline to separate by array type
+- adjusted preprocessing pipeline to save processed matrix as a gene-level matrix
 
 ### 12/16/2025 - Log 7:
 - finished bugfixing `download_methylation()`, `clean_methylation_data()`, and `merge_cohort()` for downloading and cleaning logic

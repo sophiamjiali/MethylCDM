@@ -6,22 +6,111 @@
 # Date:             11/25/2025
 # ==============================================================================
 
-from MethylCDM.utils.utils import load_annotations
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import anndata as ad
+from collections import defaultdict
+import os
+from MethylCDM.utils.utils import load_annotations, resolve_path, load_beta_file
+from MethylCDM.constants import RAW_METHYLATION_DIR
 
 # =====| Preprocessing Wrapper |================================================
 
-def process_methylation(cpg_matrix, metadata, config):
+def process_methylation(project, metadata, config):
     """
-    Preprocesses and returns DNA methylation data in the form of a CpG x Sample
-    ID matrix. Performs sample-level and probe-level quality control (QC) and
-    imputation using k-nearest neighbours (KNN) if toggled in the associated 
-    configuration file.
+    Preprocesses DNA methylation beta values for a given project, returning a 
+    gene-level matrix stored as an AnnData object. 
+    
+    Raw samples are processed by array type to perform probe-level quality c
+    ontrol (QC) and aggregate to gene-level values. The final output is samples x gene matrix with aligned metadata suitable for downstream analyses.
 
-    The CpG matrix provided was already filtered for the common set of probes 
-    present across all datapoints to control for if multiple manifests were
-    used (i.e. Illumina 450K, 27K, EPIC). The largest of the manifests present
-    in the CpG matrix will be used as the canonical annotations for the common
-    set of probes (EPIC > 450K > 27K).
+    Metadata from the provided DataFrame is aligned to the surviving samples 
+    and stored in the AnnData `obs` attribute. Array type is captured from the
+    `platform` column.
+
+    Parameters
+    ----------
+    project (str): name of a TCGA project with data available on GDC
+    metadata (DataFrame): sample metadata including at minimum the `id` column 
+        corresponding to the sample identifiers (UUIDs)
+    config (dict): Configuration object containing:
+        - raw_data_dir (str): path to the output raw data directory
+
+    Returns 
+    -------
+    (adata): Gene-level methylation matrix with samples as rows and genes as 
+        columns. Sample metadata is stored in `adata.obs`.
+    """
+
+    # Resolve the project's raw data directory
+    raw_data_dir = config.get('download', {}).get('raw_data_dir', '')
+    raw_data_dir = resolve_path(raw_data_dir, RAW_METHYLATION_DIR)
+    project_data_dir = os.path.join(raw_data_dir, f"{project}")
+
+    # Verify the raw data exists and is not empty
+    if not os.path.isdir(project_data_dir):
+        raise FileNotFoundError(f"Raw data directory was not found at "
+                                f"{project_data_dir}.")
+    if not os.listdir(project_data_dir):
+        raise FileNotFoundError(f"Raw data directory was empty at "
+                                f"{project_data_dir}.")
+    
+    # Identify and load all nested beta value .txt files
+    beta_files = [
+        f for f in Path(project_data_dir).glob("*.level3betas.parquet")
+    ]
+
+    # Keep the first occurrence of duplicates in the metadata (redundant)
+    metadata = metadata.set_index('file_name')
+    metadata = metadata[~metadata.index.duplicated(keep = 'first')]
+
+    # Divide samples by array type for preprocessing
+    array_groups = defaultdict(list)
+
+    for file in beta_files:
+        fn = file.stem + ".txt"
+        if fn in metadata.index:
+            array_type = metadata.loc[fn, 'platform']
+            array_groups[array_type].append(file)
+
+    # Preprocess sample beta values by array type
+    gene_matrices = []
+    for array_type in array_groups.keys():
+
+        # Load the beta values and their associated annotation
+        cpg_matrix = pd.concat(
+            [load_beta_file(f) for f in array_groups[array_type]], 
+            axis = 1
+        )
+        annotation = load_annotations(array_type)
+
+        # Preprocess the beta values into a gene-level matrix
+        gene_matrix = process_array_methylation(cpg_matrix, annotation, config)
+        gene_matrices.append(gene_matrix)
+
+    # Initialize an AnnData object for the aggregated gene-level matrix
+    gene_matrix = pd.concat(gene_matrices, axis = 1, join = "outer")
+    gene_matrix = gene_matrix.sort_index()
+
+    # Filter the metadata for only surviving samples
+    metadata = metadata.set_index('file_name').loc[gene_matrix.columns]
+    metadata = metadata.sort_index()
+
+    # Initialize the gene matrix as an AnnData object
+    adata = ad.AnnData(X = gene_matrix.T)
+    adata.obs = metadata
+    adata.obs['array_type'] = adata.obs['platform']
+
+    return adata
+
+
+def process_array_methylation(cpg_matrix, annotation, config):
+    """
+    Preprocesses a CpG matrix of DNA methylation beta values corresponding to
+    a single array-type/platform. Performs sample-level and probe-level quality
+    control (QC) and imputation using probe-wise mean if toggled in the 
+    associated configuration file.
 
     The following preprocessing is applied if toggled:
         - Sample-level QC:  remove samples with > 5% CpGs missing
@@ -41,7 +130,7 @@ def process_methylation(cpg_matrix, metadata, config):
     Returns
     ------
     (DataFrame): processed cohort-level CpG x Sample ID matrix of 
-                            beta values of a given project
+                 beta values of a given project
 
     Raises
     ------
@@ -55,55 +144,75 @@ def process_methylation(cpg_matrix, metadata, config):
     max_missing_probe = preproc_cfg.get('max_missing_probe', 0)
     n_neighbours = preproc_cfg.get('n_neighbours', 0)
 
-    # Fetch the dominant annotation based on manifests present
-    manifests_present = set(metadata['platform'])
-    annotation = load_annotations(manifests_present)
-
     # 1. Sample quality control
-    if config.get('toggle_sample_filtering', False):
-        cpg_matrix = sample_qc(cpg_matrix, metadata, max_missing_sample)
+    if preproc_cfg.get('toggle_sample_filtering', False):
+        cpg_matrix = sample_qc(cpg_matrix, max_missing_sample)
     
     # 2. Probe quality control
-    if config.get('toggle_probe_filtering', False):
+    if preproc_cfg.get('toggle_probe_filtering', False):
         cpg_matrix = probe_qc(cpg_matrix, annotation, max_missing_probe)
 
     # 3. Missing value imputation
-    if config.get('toggle_imputation', False):
-        cpg_matrix = impute_missing(cpg_matrix, n_neighbours)
+    if preproc_cfg.get('toggle_imputation', False):
+        cpg_matrix = impute_missing(cpg_matrix)
 
-    return cpg_matrix
+    # 5. Aggregate probes to gene-level
+    gene_matrix = aggregate_genes(cpg_matrix, annotation)
+
+    # 6. Clip extreme beta values
+    gene_matrix = clip_beta_values(gene_matrix)
+
+    return gene_matrix
 
 
 # =====| Preprocessing Helpers |================================================
 
 def sample_qc(cpg_matrix, max_missing):
-    """
-    Removes samples with too many missing values.
-
-    Parameters
-    ----------
-    cpg_matrix (DataFrame): a CpG x Sample ID matrix of beta values
-    metadata (DataFrame): a metadata matrix corresponding to the beta values
-    max_missing (float): maximum allowed fraction of missing CpGs per sample
-
-    Returns
-    -------
-    (DataFrame): filtered matrix with samples below the threshold removed
+    """ 
+    Removes samples based on missingness and global beta distribution checks. 
     
-    """
-    sample_missing = cpg_matrix.isnull().mean(axis = 0)
-    keep_samples = sample_missing <= max_missing
-    return cpg_matrix.loc[:, keep_samples]
+    Parameters 
+    ---------- 
+    beta_values (DataFrame): a CpG x Sample ID matrix of beta values 
+    max_missing (float): maximum allowed fraction of missing CpGs per sample 
+    
+    Returns 
+    ------- 
+    (DataFrame): filtered matrix with samples below the threshold removed 
+    """ 
+    
+    # Filter samples for missingness above the provided threshold 
+    sample_missing = cpg_matrix.isna().mean(axis = 0) 
+    missing_mask = sample_missing[sample_missing > max_missing].index.tolist() 
+    
+    # Filter for global distribution per sample, flagging beyond three SD 
+    sample_mean = cpg_matrix.mean(skipna = True) 
+    sample_std = cpg_matrix.std(skipna = True) 
+    
+    mean_thresh = sample_mean.mean() + np.array([-3, 3]) * sample_mean.std() 
+    std_thresh = sample_std.mean() + np.array([-3, 3]) * sample_std.std() 
+    
+    sd_mask = sample_mean[ 
+        (sample_mean < mean_thresh[0]) | (sample_mean > mean_thresh[1]) 
+    ].index.tolist() 
+    sd_mask += sample_std[ 
+        (sample_std < std_thresh[0]) | (sample_std > std_thresh[1]) 
+    ].index.tolist() 
+    
+    # Filter for the combined masks 
+    samples_mask = list(set(missing_mask + sd_mask)) 
+    return cpg_matrix.drop(columns = samples_mask)
 
 
 def probe_qc(cpg_matrix, annotation, max_missing):
     """
-    Removes low-quality probes with too many missing values.
+    Filters low-quality probes with too many missing values, variability,
+    SNP/cross-reactive annotations, and sex chromosome probes.
 
     Parameters
     ----------
     cpg_matrix (DataFrame): a CpG x Sample ID matrix of beta values
-    annotations (DataFrame): probe annotations
+    annotations (DataFrame): probe annotations for the given array type
     max_missing (float): maximum allowed fraction of missing samples per probe
 
     Returns
@@ -111,20 +220,27 @@ def probe_qc(cpg_matrix, annotation, max_missing):
     cpg_matrix (DataFrame): the cleaned CpG matrix 
     """
     
-    # Define a filter to remove probes with high missingness
+    # Filter by missingness
     missing_frac = cpg_matrix.isna().mean(axis = 1)
     keep_missing = missing_frac <= max_missing
 
-    # Remove non-variable probes
-    keep_variable = cpg_matrix.var(axi = 1) > 0
+    # Filter by annotation flags
+    annotation = annotation.set_index('probe_id')
+    annotation = annotation.loc[cpg_matrix.index]
 
-    # Remove SNP-affected, cross-reactive, and sex chromosome probes
-    keep_snp = annotation["is_snp"] == False
-    keep_cross = annotation["is_cross_reactive"] == False
-    keep_sex = ~annotation["chr"].isin(["X", "Y", "chrX", "chrY"])
+    keep_annotation = (
+        ~annotation['is_sex_chr'] &
+        ~annotation['has_cpg_snp'] &
+        ~annotation['has_sbe_snp'] &
+        ~annotation['has_probe_snp'] &
+        ~annotation['is_cross_reactive'] &
+        ~annotation['is_multi_mapped']
+    )
 
-    # Combine all filters and subset the matrix
-    keep = keep_missing & keep_variable & keep_snp & keep_cross & keep_sex
+    # Combine filters and subset the matrix
+    keep_annotation = keep_annotation.loc[cpg_matrix.index]
+    keep = keep_missing & keep_annotation
+
     return cpg_matrix.loc[keep]
 
 
@@ -143,3 +259,51 @@ def impute_missing(cpg_matrix):
     """
     return cpg_matrix.apply(lambda row: row.fillna(row.mean()), axis = 1)
     
+
+def aggregate_genes(cpg_matrix, annotation):
+    """
+    Aggregates a CpG-level beta matrix to the gene level using mean beta values.
+
+    Parameters
+    ----------
+    cpg_matrix (DataFrame): a CpG x Sample ID matrix of beta values
+    annotations (DataFrame): probe annotations for the given array type
+
+    Returns
+    -------
+    (DataFrame): the gene-level matrix
+    """
+
+    # Subset the annotations for the probes present in the matrix
+    annotation = annotation.set_index("probe_id")
+    annotation = annotation.loc[cpg_matrix.index]
+
+    # Explode multi-gene mappings into long format
+    multi_gene_series = annotation["gene_symbol"].str.split(';')
+    exploded_mapping = multi_gene_series.explode()
+
+    # Align CpG values to exploded gene mapping
+    cpg_long = cpg_matrix.loc[exploded_mapping.index].copy()
+    cpg_long['gene'] = exploded_mapping.values
+
+    # Group by gene and aggregate
+    gene_matrix = cpg_long.groupby('gene').mean()
+
+    return gene_matrix
+
+
+def clip_beta_values(gene_matrix):
+    """
+    Clips gene-level beta values to avoid exact 0 or 1 for numerical 
+    stability when training a beta variational autoencoder.
+
+    Parameters
+    ----------
+    gene_matrix (DataFrame): gene x sample matrix with beta values in [0,1]
+
+    Returns
+    -------
+    (DataFrame): the gene-level matrix with extreme beta values clipped
+    """
+
+    return gene_matrix.clip(lower = 1e-5, upper = 1 - 1e-5)

@@ -21,7 +21,6 @@ download:
 preprocess:
 
   # Path to the output data directories; initializes data folder per project
-  intermediate_data_dir: data/intermediate/methylation
   processed_data_dir: data/processed/methylation
 
   # Toggles for performing preprocessing
@@ -30,7 +29,7 @@ preprocess:
   toggle_imputation: True
 
   # Minimum number of missing CpG values to omit a sample (QC)
-  max_missing_sample: 0.05
+  max_missing_sample: 0.12
 
   # Minimum number of missing values to omit a CpG (QC)
   max_missing_probe: 0.05
