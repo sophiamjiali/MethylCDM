@@ -20,11 +20,12 @@ import argparse
 import os
 
 from MethylCDM.utils.utils import init_environment, load_config, resolve_path
-from MethylCDM.data.load_methylation import download_methylation, merge_cohort
-from MethylCDM.preprocessing.process_methylation import (
-    process_methylation,
+from MethylCDM.data.load_methylation import (
+    download_methylation, 
     clean_methylation_data
 )
+from MethylCDM.preprocessing.process_methylation import process_methylation
+
 from MethylCDM.constants import (
     RAW_METHYLATION_DIR, 
     INTERMEDIATE_METHYLATION_DIR,

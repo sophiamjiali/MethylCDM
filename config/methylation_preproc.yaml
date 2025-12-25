@@ -29,7 +29,7 @@ preprocess:
   toggle_imputation: True
 
   # Minimum number of missing CpG values to omit a sample (QC)
-  max_missing_sample: 0.12
+  max_missing_sample: 0.10
 
   # Minimum number of missing values to omit a CpG (QC)
-  max_missing_probe: 0.05
+  max_missing_probe: 0.10

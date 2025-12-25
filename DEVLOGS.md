@@ -3,6 +3,18 @@
 ## Current TO-DO
 - bugfix `process_methylation()` for-loop for processing per array type
 
+- refactor to get a common annotation based on the assay types present
+- load all data, then restrict to the intersection (?)
+- don't need the separate assay type logic?
+
+
+
+### 12/25/2025 - Log 10: My chungus life, working on Christmas Day
+- removed non-standard probes during probe quality control preprocessing
+- refactored beta value parquet loading to parallelization to fix bottleneck
+- moved sample QC to after probe QC to avoid inflating missing values
+- need to refactor preprocessing to subset to only the common CpG probes
+
 ### 12/23/2025 - Log 9:
 - consolidated cross-reactive, SNP, and Illumina annotations in `resources/`
 - bugfixed `process_array_methylation()`, need to do a final runthrough of the for-loop in `process_methylation()`

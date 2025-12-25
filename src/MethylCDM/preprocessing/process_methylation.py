@@ -142,15 +142,14 @@ def process_array_methylation(cpg_matrix, annotation, config):
     preproc_cfg = config.get('preprocess', {})
     max_missing_sample = preproc_cfg.get('max_missing_sample', 0)
     max_missing_probe = preproc_cfg.get('max_missing_probe', 0)
-    n_neighbours = preproc_cfg.get('n_neighbours', 0)
 
-    # 1. Sample quality control
-    if preproc_cfg.get('toggle_sample_filtering', False):
-        cpg_matrix = sample_qc(cpg_matrix, max_missing_sample)
-    
-    # 2. Probe quality control
+    # 1. Probe quality control
     if preproc_cfg.get('toggle_probe_filtering', False):
         cpg_matrix = probe_qc(cpg_matrix, annotation, max_missing_probe)
+
+    # 2. Sample quality control
+    if preproc_cfg.get('toggle_sample_filtering', False):
+        cpg_matrix = sample_qc(cpg_matrix, max_missing_sample)
 
     # 3. Missing value imputation
     if preproc_cfg.get('toggle_imputation', False):
@@ -166,6 +165,52 @@ def process_array_methylation(cpg_matrix, annotation, config):
 
 
 # =====| Preprocessing Helpers |================================================
+
+def probe_qc(cpg_matrix, annotation, max_missing):
+    """
+    Filters low-quality probes with too many missing values, variability,
+    SNP/cross-reactive annotations, and sex chromosome probes. Additionally 
+    removes non-standard probe IDs that indicate control probes or artifacts.
+
+    Parameters
+    ----------
+    cpg_matrix (DataFrame): a CpG x Sample ID matrix of beta values
+    annotations (DataFrame): probe annotations for the given array type
+    max_missing (float): maximum allowed fraction of missing samples per probe
+
+    Returns
+    -------
+    cpg_matrix (DataFrame): the cleaned CpG matrix 
+    """
+
+    # Remove non-standard probes
+    standard_probes = annotation[
+        annotation['probe_id'].str.startswith('cg')
+    ]['probe_id']
+    cpg_matrix = cpg_matrix[cpg_matrix.index.isin(standard_probes)]
+    
+    # Filter by missingness
+    missing_frac = cpg_matrix.isna().mean(axis = 1)
+    keep_missing = missing_frac <= max_missing
+
+    # Filter by annotation flags
+    annotation = annotation.set_index('probe_id')
+    annotation = annotation.loc[cpg_matrix.index]
+
+    keep_annotation = (
+        ~annotation['is_sex_chr'] &
+        ~annotation['has_cpg_snp'] &
+        ~annotation['has_sbe_snp'] &
+        ~annotation['has_probe_snp'] &
+        ~annotation['is_cross_reactive'] &
+        ~annotation['is_multi_mapped']
+    )
+
+    # Combine filters and subset the matrix
+    keep_annotation = keep_annotation.loc[cpg_matrix.index]
+    keep = keep_missing & keep_annotation
+
+    return cpg_matrix.loc[keep]
 
 def sample_qc(cpg_matrix, max_missing):
     """ 
@@ -202,46 +247,6 @@ def sample_qc(cpg_matrix, max_missing):
     # Filter for the combined masks 
     samples_mask = list(set(missing_mask + sd_mask)) 
     return cpg_matrix.drop(columns = samples_mask)
-
-
-def probe_qc(cpg_matrix, annotation, max_missing):
-    """
-    Filters low-quality probes with too many missing values, variability,
-    SNP/cross-reactive annotations, and sex chromosome probes.
-
-    Parameters
-    ----------
-    cpg_matrix (DataFrame): a CpG x Sample ID matrix of beta values
-    annotations (DataFrame): probe annotations for the given array type
-    max_missing (float): maximum allowed fraction of missing samples per probe
-
-    Returns
-    -------
-    cpg_matrix (DataFrame): the cleaned CpG matrix 
-    """
-    
-    # Filter by missingness
-    missing_frac = cpg_matrix.isna().mean(axis = 1)
-    keep_missing = missing_frac <= max_missing
-
-    # Filter by annotation flags
-    annotation = annotation.set_index('probe_id')
-    annotation = annotation.loc[cpg_matrix.index]
-
-    keep_annotation = (
-        ~annotation['is_sex_chr'] &
-        ~annotation['has_cpg_snp'] &
-        ~annotation['has_sbe_snp'] &
-        ~annotation['has_probe_snp'] &
-        ~annotation['is_cross_reactive'] &
-        ~annotation['is_multi_mapped']
-    )
-
-    # Combine filters and subset the matrix
-    keep_annotation = keep_annotation.loc[cpg_matrix.index]
-    keep = keep_missing & keep_annotation
-
-    return cpg_matrix.loc[keep]
 
 
 def impute_missing(cpg_matrix):

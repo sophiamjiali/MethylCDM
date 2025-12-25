@@ -11,9 +11,11 @@
 import random
 import numpy as np
 import pandas as pd
+import os
 import torch
 import yaml
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 from MethylCDM.constants import (
     CONFIG_DIR,
@@ -75,10 +77,39 @@ def load_annotations(array_type):
     
     return annotation
 
+def load_cpg_matrix(files):
+    """
+    Returns a CpG x Samples matrix given a list of individual parquet files
+    holding DNA methylation beta values of a given sample. Columns of the matrix
+    are the sample IDs of each sample (file name without the extension).
+
+    Parameters
+    ----------
+    files (list): list of `pathlib.path` paths to parquet files
+
+    Returns
+    -------
+    (DataFrame): a CpG x Samples matrix of beta values for the provided dataset
+    """
+
+    # Load all beta values in parallel
+    with ThreadPoolExecutor() as ex:
+        beta_values = list(ex.map(load_beta_file, files))
+
+    # Concatenate on the index to build the matrix
+    cpg_matrix = pd.concat(beta_values, axis = 1, join = "outer")
+    cpg_matrix = cpg_matrix.sort_index()
+
+    return cpg_matrix
+
+
+
+
 def load_beta_file(path):
     """
-    Loads a singles-sample beta value .parquet file with two unlabeled columns 
-    representing the CpG probe ID and its corresponding beta value. 
+    Loads a singles-sample beta value .parquet file with the CpG probe ID as
+    the index and the sample ID (filename without extension) as the beta value
+    column name.
 
     Parameters
     ----------
@@ -89,12 +120,10 @@ def load_beta_file(path):
     beta_values (DataFrame): a dataframe of CpGs x Sample ID
     """
 
+    sample_id = path.stem
     beta_values = pd.read_parquet(path)
-    beta_values.columns = ["CpG_ID", "beta_value"]
-    beta_values = beta_values.set_index("CpG_ID")
-    beta_values.columns = [path.stem]
-    beta_values[path.stem] = beta_values[path.stem].astype("float32")
-    return beta_values
+    beta_values = beta_values.rename(columns = {"beta_value": sample_id})
+    return beta_values.set_index("probe_id")
 
 # =====| Configuration & Environment |==========================================
 
