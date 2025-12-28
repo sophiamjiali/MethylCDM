@@ -1,13 +1,52 @@
 # Developer Logs
 
 ## Current TO-DO
-- bugfix `process_methylation()` for-loop for processing per array type
+- download methylation data listed in `data_info.md` using the freshly clean instance of `process_methylation.ipynb`
+- preprocess all methylation data: figure out best method to import into cluster
+    - consolidate into single AnnData object before importing?
+    - import individual AnnData objects?
 
-- refactor to get a common annotation based on the assay types present
-- load all data, then restrict to the intersection (?)
-- don't need the separate assay type logic?
 
 
+### RNA-CDM Beta-VAE notes
+- considered 12 cancer types for training; five used during training and validation
+    - LUAD, GBM, KIRP, CESC, COAD
+- NaN values were removed
+- selected common genes between all cancer types (17,655 genes)
+- gene expression log-transformed and normalized with z-score from training set values
+
+- final architecture: empirically determined
+    - two hidden layers of 6k and 4k neurons each for both the encoder and decoder
+    - size of 200 for the latent dimension
+    - batch norm btween the layers
+    - LeakyReLU as the activation function
+    - beta value of 0.005 was used in the loss function
+    - Adam optimizer for training, lr = 3x10-3
+    - warm-up and cosine learning rate scheduler
+    - mean square error as loss function
+    - trained for 250 epochs
+    - early stopping based on validation set loss
+    - batch size of 128
+- 60-20-20% training, validation, test stratified splits
+
+#### Considerations
+- RNA-seq modeled after log/CPM transforms with continuous, heavy-tailed distributions
+- beta values are bounded to [0, 1] and usually bimodal; may affect choice of reconstruction loss
+    - e.g. Gaussian versus beta/bernoulli-like
+    - output activation to sigmoid?
+
+
+
+
+
+
+
+### 12/28/2025 - Log 11:
+- changed to only preserve Illumina 450K assay, removed 27K assay
+- as first pass, preserve the richest coverage; harmonization would require keeping only the overlapping probes
+- finished full preprocesing pipeline; outputted and saved processed AnnData object
+- starting with the RNA-CDM beta-VAE architecture to start
+- listed data to download in `data_info.md`
 
 ### 12/25/2025 - Log 10: My chungus life, working on Christmas Day
 - removed non-standard probes during probe quality control preprocessing

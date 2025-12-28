@@ -12,7 +12,12 @@ import numpy as np
 import anndata as ad
 from collections import defaultdict
 import os
-from MethylCDM.utils.utils import load_annotations, resolve_path, load_beta_file
+from MethylCDM.utils.utils import (
+    resolve_path,
+    load_beta_file,
+    load_annotation,
+    load_cpg_matrix
+)
 from MethylCDM.constants import RAW_METHYLATION_DIR
 
 # =====| Preprocessing Wrapper |================================================
@@ -65,42 +70,29 @@ def process_methylation(project, metadata, config):
     metadata = metadata.set_index('file_name')
     metadata = metadata[~metadata.index.duplicated(keep = 'first')]
 
-    # Divide samples by array type for preprocessing
-    array_groups = defaultdict(list)
+    # Identify the highest coverage array type
+    manifests = metadata['platform'].unique()
+    annotation, array_type = load_annotation(manifests)
 
-    for file in beta_files:
-        fn = file.stem + ".txt"
-        if fn in metadata.index:
-            array_type = metadata.loc[fn, 'platform']
-            array_groups[array_type].append(file)
+    # Normalize the metadata extensions
+    metadata.index = metadata.index.str.removesuffix(".txt")
+    valid_stems = set(metadata[metadata['platform'] == array_type].index)
 
-    # Preprocess sample beta values by array type
-    gene_matrices = []
-    for array_type in array_groups.keys():
+    # Fetch samples that align with the given array type
+    beta_files = [f for f in beta_files if f.stem in valid_stems]
 
-        # Load the beta values and their associated annotation
-        cpg_matrix = pd.concat(
-            [load_beta_file(f) for f in array_groups[array_type]], 
-            axis = 1
-        )
-        annotation = load_annotations(array_type)
-
-        # Preprocess the beta values into a gene-level matrix
-        gene_matrix = process_array_methylation(cpg_matrix, annotation, config)
-        gene_matrices.append(gene_matrix)
-
-    # Initialize an AnnData object for the aggregated gene-level matrix
-    gene_matrix = pd.concat(gene_matrices, axis = 1, join = "outer")
+    # Preprocess the beta values into a gene-level matrix
+    cpg_matrix = load_cpg_matrix(beta_files)
+    gene_matrix = process_array_methylation(cpg_matrix, annotation, config)
     gene_matrix = gene_matrix.sort_index()
 
-    # Filter the metadata for only surviving samples
-    metadata = metadata.set_index('file_name').loc[gene_matrix.columns]
+    # Filter the metadata for surviving samples
+    metadata = metadata.loc[gene_matrix.columns]
     metadata = metadata.sort_index()
 
     # Initialize the gene matrix as an AnnData object
     adata = ad.AnnData(X = gene_matrix.T)
     adata.obs = metadata
-    adata.obs['array_type'] = adata.obs['platform']
 
     return adata
 

@@ -64,18 +64,6 @@ def build_meta_fields(fields):
                 meta.append(parts)
     return meta
 
-def load_annotations(array_type):
-
-    if (array_type == "Illumina Human Methylation EPIC"):
-        annotation = pd.read_csv(ANNOTATION_EPIC)
-    elif (array_type == "Illumina Human Methylation 450"):
-        annotation = pd.read_csv(ANNOTATION_450K)
-    elif (array_type == "Illumina Human Methylation 27"):
-        annotation = pd.read_csv(ANNOTATION_27K)
-    else:
-        raise ValueError ("No valid manifest provided in `manifests`.")
-    
-    return annotation
 
 def load_cpg_matrix(files):
     """
@@ -103,6 +91,38 @@ def load_cpg_matrix(files):
     return cpg_matrix
 
 
+def load_annotation(manifests):
+    """
+    Loads and returns the dominant Illumina methylation manifest
+    (EPIC > 450K > 27K) out of the manifests present in the dataset as
+    provided by `manifests`, along with its name.
+
+    Parameters
+    ----------
+    manifests (list): list of strings of manifests present in the dataset
+
+    Returns 
+    -------
+    (Tuple): the dominant manifest present in `manifests` and its name
+
+    Raises
+    ------
+    ValueError: if no viable manifest was provided
+    """
+
+    if ("Illumina Human Methylation EPIC" in manifests):
+        annotation = pd.read_csv(ANNOTATION_EPIC)
+        array_type = "Illumina Human Methylation Epic"
+    elif ("Illumina Human Methylation 450" in manifests):
+        annotation = pd.read_csv(ANNOTATION_450K)
+        array_type = "Illumina Human Methylation 450"
+    elif ("Illumina Human Methylation 27" in manifests):
+        annotation = pd.read_csv(ANNOTATION_27K)
+        array_type = "Illumina Human Methylation 27"
+    else:
+        raise ValueError ("No valid manifest provided in `manifests`.")
+    
+    return (annotation, array_type)
 
 
 def load_beta_file(path):

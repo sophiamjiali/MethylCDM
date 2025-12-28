@@ -28,7 +28,6 @@ from MethylCDM.preprocessing.process_methylation import process_methylation
 
 from MethylCDM.constants import (
     RAW_METHYLATION_DIR, 
-    INTERMEDIATE_METHYLATION_DIR,
     PROCESSED_METHYLATION_DIR,
     METADATA_METHYLATION_DIR
 )
@@ -73,13 +72,13 @@ def main():
                                     f"{args.project}_metadata.csv")
     metadata = pd.read_csv(project_metadata)
     
-    # Preprocess the CpG matrix, outputting a gene-level matrix
+    # Preprocess the CpG matrix, outputting a gene-level matrix (AnnData)
     gene_matrix = process_methylation(args.project, metadata, preproc_cfg)
 
     proc_data_dir = (preproc_cfg.get('preprocess', {})
                                .get('processed_data_dir', ''))
     proc_data_dir = resolve_path(proc_data_dir, PROCESSED_METHYLATION_DIR)
-    proc_file = os.path.join(proc_data_dir, 
-                             f"{args.project}_gene_matrix.parquet")
+    proc_file = os.path.join(proc_data_dir, args.project,
+                             f"{args.project}_gene_matrix.h5ad")
 
-    gene_matrix.to_parquet(proc_file)
+    gene_matrix.write_h5ad(proc_file, compression = "gzip")
