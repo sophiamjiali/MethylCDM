@@ -8,6 +8,13 @@
 
 from pathlib import Path
 
+# =====| GDC API |==============================================================
+
+# Configurations for donwloading data using the GDC API client
+CHUNK_SIZE = 25
+MAX_RETRIES = 5
+RETRY_SLEEP = 15
+
 # =====| Paths |================================================================
 
 # Compute project path relative to this file

@@ -36,7 +36,8 @@
 
 
 
-
+### 12/30/2025 - Log 13:
+- split manifest into temporary chunks to avoid API crashes; retrying donwloading
 
 ### 12/29/2025 - Log 12:
 - successfully ran downloading and preprocessing workflow for all twelve projects
