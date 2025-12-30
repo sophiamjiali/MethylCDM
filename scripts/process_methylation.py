@@ -18,6 +18,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 import os
+import anndata
 
 from MethylCDM.utils.utils import init_environment, load_config, resolve_path
 from MethylCDM.data.load_methylation import (
@@ -51,6 +52,11 @@ def main():
     # Initialize the environment for reproducible analysis
     init_environment(pipeline_cfg)
 
+    if args.verbose:
+        print("=" * 50)
+        print(f"~~~~~| Beginning Step 1 for Project {args.project}")
+        print("=" * 50)
+        print("\n")
 
     # -----| Data Downloading and Cleaning |-----
 
@@ -60,9 +66,8 @@ def main():
     project_raw_dir = os.path.join(raw_data_dir, args.project)
     Path(project_raw_dir).mkdir(parents = True, exist_ok = True)
 
-    if not os.listdir(project_raw_dir):
-        download_methylation(args.project, preproc_cfg, args.verbose)
-        clean_methylation_data(project_raw_dir)
+    download_methylation(args.project, preproc_cfg, args.verbose)
+    clean_methylation_data(project_raw_dir, args.verbose)
 
 
     # -----| Data Preprocessing |-----
@@ -73,12 +78,28 @@ def main():
     metadata = pd.read_csv(project_metadata)
     
     # Preprocess the CpG matrix, outputting a gene-level matrix (AnnData)
-    gene_matrix = process_methylation(args.project, metadata, preproc_cfg)
+    gene_matrix = process_methylation(args.project, metadata, 
+                                      preproc_cfg, args.verbose)
 
+    # Initialize the directory, no project nesting
     proc_data_dir = (preproc_cfg.get('preprocess', {})
-                               .get('processed_data_dir', ''))
+                                .get('processed_data_dir', ''))
     proc_data_dir = resolve_path(proc_data_dir, PROCESSED_METHYLATION_DIR)
-    proc_file = os.path.join(proc_data_dir, args.project,
-                             f"{args.project}_gene_matrix.h5ad")
+    Path(proc_data_dir).mkdir(parents = True, exist_ok = True)
 
+    # Save the gene-level matrix titled by the project
+    proc_file = os.path.join(proc_data_dir,
+                         f"{args.project}_gene_matrix.h5ad")
+
+
+    anndata.settings.allow_write_nullable_strings = True
     gene_matrix.write_h5ad(proc_file, compression = "gzip")
+
+    if args.verbose:
+        print("=" * 50)
+        print(f"~~~~~| Finished Step 1 for Project {args.project}")
+        print("=" * 50), 
+
+
+if __name__ == "__main__":
+    main()

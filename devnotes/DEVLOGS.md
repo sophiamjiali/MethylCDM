@@ -1,10 +1,9 @@
 # Developer Logs
 
 ## Current TO-DO
-- download methylation data listed in `data_info.md` using the freshly clean instance of `process_methylation.ipynb`
-- preprocess all methylation data: figure out best method to import into cluster
-    - consolidate into single AnnData object before importing?
-    - import individual AnnData objects?
+- consolidate anndatas together: filter for the common genes, append metadata
+- design beta architecture
+- begin training
 
 
 
@@ -39,7 +38,12 @@
 
 
 
-
+### 12/29/2025 - Log 12:
+- successfully ran downloading and preprocessing workflow for all twelve projects
+    - deleted raw files to save space, seed is set for workflow so preprocessing is reproducible 
+- next, reconcile gene-level matrix into one AnnData object; stratify into training-testing splits
+- save stratified mass-object, import to HPC
+- design architecture, aligning with Beta-VAE notes (align with RNA-CDM first)
 
 ### 12/28/2025 - Log 11:
 - changed to only preserve Illumina 450K assay, removed 27K assay

@@ -18,11 +18,13 @@ from MethylCDM.utils.utils import (
     load_annotation,
     load_cpg_matrix
 )
-from MethylCDM.constants import RAW_METHYLATION_DIR
+from MethylCDM.constants import (
+    RAW_METHYLATION_DIR
+)
 
 # =====| Preprocessing Wrapper |================================================
 
-def process_methylation(project, metadata, config):
+def process_methylation(project, metadata, config, verbose = False):
     """
     Preprocesses DNA methylation beta values for a given project, returning a 
     gene-level matrix stored as an AnnData object. 
@@ -41,12 +43,18 @@ def process_methylation(project, metadata, config):
         corresponding to the sample identifiers (UUIDs)
     config (dict): Configuration object containing:
         - raw_data_dir (str): path to the output raw data directory
+    verbose (boolean): toggle for verbose processing 
 
     Returns 
     -------
     (adata): Gene-level methylation matrix with samples as rows and genes as 
         columns. Sample metadata is stored in `adata.obs`.
     """
+
+    if verbose:
+        print("=" * 50)
+        print(f"Beginning methylation preprocessing of project {project}")
+        print("=" * 50)
 
     # Resolve the project's raw data directory
     raw_data_dir = config.get('download', {}).get('raw_data_dir', '')
@@ -94,6 +102,11 @@ def process_methylation(project, metadata, config):
     adata = ad.AnnData(X = gene_matrix.T)
     adata.obs = metadata
 
+    if verbose:
+        print("=" * 50)
+        print(f"Completed processing data for TCGA project {project}")
+        print("=" * 50)
+
     return adata
 
 
@@ -138,20 +151,25 @@ def process_array_methylation(cpg_matrix, annotation, config):
     # 1. Probe quality control
     if preproc_cfg.get('toggle_probe_filtering', False):
         cpg_matrix = probe_qc(cpg_matrix, annotation, max_missing_probe)
+        print("Successfully performed probe quality control")
 
     # 2. Sample quality control
     if preproc_cfg.get('toggle_sample_filtering', False):
         cpg_matrix = sample_qc(cpg_matrix, max_missing_sample)
+        print("Successfully performed sample quality control")
 
     # 3. Missing value imputation
     if preproc_cfg.get('toggle_imputation', False):
         cpg_matrix = impute_missing(cpg_matrix)
+        print("Successfully imputed missing values")
 
     # 5. Aggregate probes to gene-level
     gene_matrix = aggregate_genes(cpg_matrix, annotation)
+    print("Successfully aggregated gene-level beta values")
 
     # 6. Clip extreme beta values
     gene_matrix = clip_beta_values(gene_matrix)
+    print("Successfully clipped gene-level beta values")
 
     return gene_matrix
 

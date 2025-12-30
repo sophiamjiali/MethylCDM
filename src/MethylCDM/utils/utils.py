@@ -143,7 +143,7 @@ def load_beta_file(path):
     sample_id = path.stem
     beta_values = pd.read_parquet(path)
     beta_values = beta_values.rename(columns = {"beta_value": sample_id})
-    return beta_values.set_index("probe_id")
+    return beta_values
 
 # =====| Configuration & Environment |==========================================
 
