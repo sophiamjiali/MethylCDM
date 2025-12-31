@@ -1,9 +1,18 @@
 # Developer Logs
 
 ## Current TO-DO
-- consolidate anndatas together: filter for the common genes, append metadata
-- design beta architecture
-- begin training
+- continue LightningDataModule (path to train/val/test objects in configurations)
+- continue betaVAE_training.py function loop for training, bugtest
+
+
+1. consolidate data
+    - filter for common genes, send to HPC [X]
+2. build beta-VAE architecture
+    - LightningModule [X]
+    - LightningDataModule
+    - betaVAE_training.py (training function for Optuna)
+3. train model
+4. analyze results
 
 
 
@@ -35,9 +44,15 @@
     - output activation to sigmoid?
 
 
+### 12/31/2025 - Log 14:
+- fetched RNA-CDM code; adjusted betaVAE training to be compatible with sweep using Optuna
+- converted their workflow to PyTorch lightning for more modularity + better compatibility with Optuna
+- changed decoder activation from tanh to sigmoid to match the [0, 1] range of beta values
+- keeping MSE reconstruction loss for now, better for more continuous beta values (else BCE)
+- implemented cohort reconciliation and train-val split logic; must wait for downloading
 
 ### 12/30/2025 - Log 13:
-- split manifest into temporary chunks to avoid API crashes; retrying donwloading
+- split manifest into temporary chunks to avoid API crashes; retrying downloading
 
 ### 12/29/2025 - Log 12:
 - successfully ran downloading and preprocessing workflow for all twelve projects

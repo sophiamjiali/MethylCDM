@@ -7,10 +7,8 @@
 # ==============================================================================
 
 from pathlib import Path
-import pandas as pd
 import numpy as np
 import anndata as ad
-from collections import defaultdict
 import os
 from MethylCDM.utils.utils import (
     resolve_path,
@@ -101,6 +99,10 @@ def process_methylation(project, metadata, config, verbose = False):
     # Initialize the gene matrix as an AnnData object
     adata = ad.AnnData(X = gene_matrix.T)
     adata.obs = metadata
+
+    # Clean the metadata for type-casting ('tumor_grade' is a problem column)
+    adata.obs['tumor_grade'] = (adata.obs['tumor_grade']
+                                .fillna('').astype(str))
 
     if verbose:
         print("=" * 50)

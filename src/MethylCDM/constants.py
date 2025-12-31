@@ -33,11 +33,13 @@ DATA_DIR = PROJECT_ROOT / "data"
 RAW_METHYLATION_DIR = DATA_DIR / "raw" / "methylation"
 PROCESSED_METHYLATION_DIR = DATA_DIR / "processed" / "methylation"
 METADATA_METHYLATION_DIR = DATA_DIR / "metadata" / "methylation"
+TRAINING_METHYLATION_DIR = DATA_DIR / "training" / "methylation"
 
 RAW_WSI_DIR = DATA_DIR / "raw" / "wsi"
 INTERMEDIATE_WSI_DIR = DATA_DIR / "intermediate" / "wsi"
 PROCESSED_WSI_DIR = DATA_DIR / "processed" / "wsi"
 METADATA_WSI_DIR = DATA_DIR / "metadata" / "wsi"
+TRAINING_WSI_DIR =  DATA_DIR / "training" / "wsi"
 
 # =====| Probe Annotations |====================================================
 

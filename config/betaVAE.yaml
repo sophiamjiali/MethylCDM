@@ -1,0 +1,24 @@
+# ==============================================================================
+# Script:           beta_vae.yaml
+# Purpose:          Beta-VAE training configurations
+# Author:           Sophia Li
+# Affiliation:      CCG Lab, Princess Margaret Cancer Center, UHN, UofT
+# Date:             11/14/2025
+#
+# Notes:            Configurations are inspired by RNA-CDM.
+# ==============================================================================
+
+# Number of Methylation features to start with
+methylation_features: 17655
+
+# Toggle to use quick training using a few samples for debugging
+quick: True
+
+# The optimizer to use when training
+# optimizer: "Adam"
+
+# =====| Optuna Hyperparameter Sweep |==========================================
+
+# Path to the input training data
+project_data_dir: data/training/methylation
+training_data_dir: data/training/methylation

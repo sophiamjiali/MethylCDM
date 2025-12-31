@@ -91,14 +91,13 @@ def main():
     proc_file = os.path.join(proc_data_dir,
                          f"{args.project}_gene_matrix.h5ad")
 
-
     anndata.settings.allow_write_nullable_strings = True
     gene_matrix.write_h5ad(proc_file, compression = "gzip")
 
     if args.verbose:
         print("=" * 50)
         print(f"~~~~~| Finished Step 1 for Project {args.project}")
-        print("=" * 50), 
+        print("=" * 50)
 
 
 if __name__ == "__main__":

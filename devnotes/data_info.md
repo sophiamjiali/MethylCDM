@@ -14,14 +14,16 @@ python ./scripts/process_methylation.py \
 
 
 
+Final shape: 
+
 (below fetched from RNA-CDM paper)
 
 Project Code | Cancer Type                                            | # of Samples | # Downloaded | Post-Processing
 ---------------------------------------------------------------------------------------------------------------------
 TCGA-LUAD    | Lung adenocarcinoma                                    | 520          |
 TCGA-KIRP    | Kidney renal papillary cell carcinoma                  | 298          |
-TCGA-COAD    | Colon adenocarcinoma                                   | 289          | 555          | 
-TCGA-CESC    | Cervical squamous cell carcinoma & endocervical adeno. | 277          | 312          | 
+TCGA-COAD    | Colon adenocarcinoma                                   | 289          | 555          | 347
+TCGA-CESC    | Cervical squamous cell carcinoma & endocervical adeno. | 277          | 312          | 308
 TCGA-GBM     | Glioblastoma multiforme                                | 212          | 450          | 153
 TCGA-PAAD    | Pancreatic adenocarcinoma                              | 202          | 195          | 189
 TCGA-ESCA    | Oesophageal carcinoma                                  | 156          | 202          | 201
@@ -32,9 +34,9 @@ TCGA-CHOL    | Cholangiocarcinoma                                     | 36      
 
 Downloaded Status
 [] TCGA-LUAD
-[] TCGA-KIRP
-[] TCGA-COAD (attempted, failed)
-[] TCGA-CESC (attempted, failed)
+[] TCGA-KIRP (currently downloading)
+[X] TCGA-COAD
+[X] TCGA-CESC
 [X] TCGA-GBM
 [X] TCGA-PAAD
 [X] TCGA-ESCA
