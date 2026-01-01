@@ -10,7 +10,8 @@
 # Notes:            Compatible with PyTorch Lightning
 # ==============================================================================
 
-import pytorch_lightning as pl
+from torch import Tensor
+import lightning.pytorch as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,24 +22,32 @@ from warmup_scheduler import GradualWarmupScheduler
 class MethylEncoder(nn.Module):
     def __init__(self,
                  input_dim: int,
+                 latent_dim: int,
                  hidden_dims: int):
         super(MethylEncoder, self).__init__()
 
         self.input_dim = input_dim
+        self.latent_dim = latent_dim
 
         # Build the encoder architecture
         modules = [nn.Sequential(nn.Dropout())]
-        in_channels = input_dim
+        curr_ch = input_dim
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
-                    nn.Linear(in_channels, h_dim),
+                    nn.Linear(curr_ch, h_dim),
                     nn.BatchNorm1d(h_dim),
                     nn.LeakyReLU()
                 )
             )
-            in_channels = h_dim
+            curr_ch = h_dim
 
+        # Last layer interfaces with the latent dimension
+        modules.append(nn.Sequential(
+            nn.Linear(curr_ch, self.latent_dim),
+            nn.BatchNorm1d(self.latent_dim),
+            nn.LeakyReLU()
+        ))
         self.encoder = nn.Sequential(*modules)
 
     def forward(self, x):
@@ -49,24 +58,30 @@ class MethylEncoder(nn.Module):
 class MethylDecoder(nn.Module):
     def __init__(self,
                  input_dim: int,
+                 latent_dim: int,
                  hidden_dims: int):
         super(MethylDecoder, self).__init__()
 
         self.input_dim = input_dim
+        self.latent_dim = latent_dim
+        self.hidden_dims = hidden_dims
 
         # Build the decoder architecture, mirroring the encoder
         modules = []
-        in_channels = input_dim
-        for h_dim in hidden_dims:
+        curr_ch = self.latent_dim
+        for h_dim in self.hidden_dims:
             modules.append(
-                nn.Sequential(nn.Linear(in_channels, h_dim),
+                nn.Sequential(nn.Linear(curr_ch, h_dim),
                               nn.BatchNorm1d(h_dim),
                               nn.LeakyReLU())
             )
-            in_channels = h_dim
+            curr_ch = h_dim
 
-        modules.append(nn.Sequential(nn.Linear(in_channels, input_dim), 
-                                     nn.Sigmoid()))
+        # Last layer interfaces with the latent dimension
+        modules.append(nn.Sequential(
+            nn.Linear(curr_ch, self.input_dim), 
+            nn.Sigmoid()
+        ))
         
         self.decoder = nn.Sequential(*modules)
 
@@ -90,10 +105,13 @@ class BetaVAE(pl.LightningModule):
         self.save_hyperparameters()
 
         # Initialize model components
-        self.encoder = MethylEncoder(input_dim, encoder_dims)
+        self.encoder = MethylEncoder(input_dim, latent_dim, encoder_dims)
         self.z_mu = nn.Linear(latent_dim, latent_dim)
         self.z_logvar = nn.Linear(latent_dim, latent_dim)
-        self.decoder = MethylDecoder(latent_dim, decoder_dims)
+        self.decoder = MethylDecoder(input_dim, latent_dim, decoder_dims)
+
+        # Initialize the linear layers using Xavier Initialization
+        self.apply(self._init_weights)
 
     def encode(self, x):
         z = self.encoder(x)
@@ -101,13 +119,16 @@ class BetaVAE(pl.LightningModule):
         z_log_var = self.z_logvar(z)
         return z_mu, z_log_var, z
     
+
     def decode(self, z):
         return self.decoder(z)
+
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mu + eps * std
+    
     
     def sample(self,
                num_samples: int,
@@ -140,9 +161,15 @@ class BetaVAE(pl.LightningModule):
         samples = self.decoder(z)
         return samples
     
+
     def forward(self, x):
-        return
+        z_mu, z_log_var, z = self.encode(x)
+        z = self.reparameterize(z_mu, z_log_var)
+        x_hat = self.decoder(z)
+
+        return x_hat, z_mu, z_log_var
     
+
     def compute_loss(self, x, x_hat, mu, logvar):
         recon_loss = F.mse_loss(x_hat, x)
         kld_loss = torch.mean(
@@ -157,6 +184,7 @@ class BetaVAE(pl.LightningModule):
             'kl_loss': kld_loss
         }
 
+
     def training_step(self, batch, batch_idx):
         x = batch['methylation_data']
         x_hat, mu, logvar = self(x)
@@ -168,6 +196,7 @@ class BetaVAE(pl.LightningModule):
 
         return losses['total_loss']
     
+
     def validation_step(self, batch, batch_idx):
         x = batch['methylation_data']
         x_hat, mu, logvar = self(x)
@@ -213,7 +242,15 @@ class BetaVAE(pl.LightningModule):
 
         return {
             "optimizer": optimizer,
-            "lr_scheduler": scheduler,
-            "interval": "epoch"
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "epoch",
+                "monitor": "val_loss"
+            }
         }
+    
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            nn.init.xavier_uniform_(module.weight)
+            module.bias.data.fill_(0.01)
     

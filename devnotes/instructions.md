@@ -23,3 +23,13 @@ python ./scripts/prepare_data.py \
   --config_betaVAE betaVAE.yaml \
   --verbose True
 ```
+
+## 3. Train Beta-VAE by initializing a hyperparameter sweep
+```
+conda activate methylcdm-env
+pip install -e .
+python ./scripts/train_betaVAE.py \
+  --config_pipeline pipeline.yaml \
+  --config_train betaVAE.yaml \
+  --verbose True
+```

@@ -95,7 +95,8 @@ def split_cohort(cohort_anndata, seed, verbose):
         cohort_anndata.obs_names,
         test_size = 0.2,
         stratify = cohort_anndata.obs['tcga_project'],
-        random_state = seed
+        random_state = seed,
+        shuffle = True
     )
 
     # Split into train and validation
@@ -103,7 +104,8 @@ def split_cohort(cohort_anndata, seed, verbose):
         train_idx,
         test_size = 0.25,
         stratify = cohort_anndata.obs.loc[train_idx, 'tcga_project'],
-        random_state = seed
+        random_state = seed,
+        shuffle = True
     )
 
     # Slice the cohort AnnData object

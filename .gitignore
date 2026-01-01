@@ -2,6 +2,8 @@
 data/
 resources/
 tools/
+wandb/
+models/
 
 # macOS
 .DS_Store

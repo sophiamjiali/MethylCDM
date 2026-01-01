@@ -41,6 +41,14 @@ PROCESSED_WSI_DIR = DATA_DIR / "processed" / "wsi"
 METADATA_WSI_DIR = DATA_DIR / "metadata" / "wsi"
 TRAINING_WSI_DIR =  DATA_DIR / "training" / "wsi"
 
+# =====| Model Training |=======================================================
+
+BETAVAE_CHECKPOINT_DIR = PROJECT_ROOT / "models" / "beta_vae"
+BETAVAE_SWEEP_DIR = PROJECT_ROOT / "experiments" / "beta_vae"
+
+CDM_CHECKPOINT_DIR = PROJECT_ROOT / "models" / "cdm"
+CDM_SWEEP_DIR = PROJECT_ROOT / "experiments" / "cdm"
+
 # =====| Probe Annotations |====================================================
 
 RESOURCES_DIR = PROJECT_ROOT / "resources"
