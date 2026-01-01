@@ -13,3 +13,13 @@ python ./scripts/process_methylation.py \
   --config_preproc methylation_preproc.yaml \
   --verbose True
 ```
+
+## 2. Prepare DNA methylation data for model training
+```
+conda activate methylcdm-env
+pip install -e .
+python ./scripts/prepare_data.py \
+  --config_pipeline pipeline.yaml \
+  --config_betaVAE betaVAE.yaml \
+  --verbose True
+```

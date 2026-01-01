@@ -44,14 +44,15 @@ def main():
 
     if args.verbose:
         print("=" * 50)
-        print(f"~~~~~| Beginning Step 2 for Project {args.project}")
+        print(f"~~~~~| Beginning Step 2")
         print("=" * 50)
         print("\n")
 
     # -----| Data Reconciliation |-----
     data_dir = model_cfg.get('project_data_dir', '')
     data_dir = resolve_path(data_dir, PROCESSED_METHYLATION_DIR)
-    cohort_adata = reconcile_methylation(data_dir)
+    cohort_adata = reconcile_methylation(data_dir, args.verbose, 
+                                         pipeline_cfg.get('seed', 42))
 
     # Save the full cohort AnnData Object
     train_data_dir = model_cfg.get('training_data_dir', '')
@@ -76,7 +77,7 @@ def main():
 
     if args.verbose:
         print("=" * 50)
-        print(f"~~~~~| Finished Step 2 for Project {args.project}")
+        print(f"~~~~~| Finished Step 2")
         print("=" * 50)
 
 if __name__ == "__main__":

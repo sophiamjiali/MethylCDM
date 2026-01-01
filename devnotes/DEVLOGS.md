@@ -43,6 +43,12 @@
     - e.g. Gaussian versus beta/bernoulli-like
     - output activation to sigmoid?
 
+------------------------------------------------------------------------------------------------------------
+
+
+
+### 01/01/2025 - Log 15:
+- finished downloading and reconciling, split into train-val-test datasets
 
 ### 12/31/2025 - Log 14:
 - fetched RNA-CDM code; adjusted betaVAE training to be compatible with sweep using Optuna
