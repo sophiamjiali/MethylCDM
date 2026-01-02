@@ -81,7 +81,7 @@ def objective(trial, config):
     trainer.fit(model, datamodule)
 
     # Fetch validation metrics
-    val_loss = trainer.callback_metrics['val_total_loss'].item()
+    val_loss = trainer.callback_metrics['val_loss'].item()
     wandb.finish()
 
     return val_loss
