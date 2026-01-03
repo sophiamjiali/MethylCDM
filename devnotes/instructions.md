@@ -36,7 +36,7 @@ python ./scripts/train_betaVAE.py \
   --verbose True
 ```
 
-If importing to HPC for the first time:
+If importing to HPC for the first time (Lunenfeld):
 ```
 # Import files to HPC
 cd /Volumes/FBI_Drive/MethylCDM-project
@@ -69,4 +69,12 @@ sbatch slurm/betaVAE_sweep.sbatch
 
 # Monitor job progress
 squeue -u $USER
+```
+
+If importing to HPC for the first time (H4H):
+```
+# Log into HPC and request a computing node
+ssh t140812uhn@h4huhnlogin1.uhnresearch.ca
+salloc -c 6 -t 4:0:0 --mem 2G
+cd /cluster/projects/kumargroup/sophia/methylcdm-project
 ```

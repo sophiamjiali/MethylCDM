@@ -46,6 +46,15 @@
 ------------------------------------------------------------------------------------------------------------
 
 
+### 01/02/2025 - Log 16:
+- successfully performed 90 trial Optuna hyperparameter sweep
+- need to add more metrics to training: KL per latent dimension, active units, mutual information proxies, latent covariance structure; need to evaluate downstream diffusion performance, original study didn't do
+- until I add the new metrics: likely just a Pareto set and is a stable, well-regularized latent representation
+    - will need further training to approach the global optimum
+- 90 trial, warmup of 5% of total steps
+- didn't include disentanglement metrics as they're too expensive for a comprehensive sweep and original paper didn't optimize for them directly; left for post-hoc evaluation
+- added try-except wrapper to prune trials that fail, rather than crashing
+- run second sweep with adjusted parameter ranges, fixed warmup scheduler
 
 ### 01/01/2025 - Log 15:
 - finished downloading and reconciling, split into train-val-test datasets

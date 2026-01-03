@@ -5,6 +5,7 @@
 #SBATCH --time=72:00:00
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
+#SBATCH --nodelist=gpu1
 
 # Activate Conda Environment
 source ~/miniforge3/etc/profile.d/conda.sh

@@ -2,16 +2,13 @@ name: methylcdm-env
 channels:
   - conda-forge
   - defaults
-  - nvidia
-  - pytorch
 dependencies:
   - python=3.11
   - numpy
   - pandas
   - scipy
   - scikit-learn
-  - pytorch
-  - pytorch-cuda=12.1
+  - pytorch>=2.3
   - pytorch-lightning>=2.6
   - matplotlib
   - seaborn
@@ -21,6 +18,7 @@ dependencies:
   - wandb
   - pip
   - pip:
+      - methylcdm==0.1.0
       - optuna-dashboard
       - optuna-integration
       - lightning
