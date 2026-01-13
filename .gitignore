@@ -1,5 +1,5 @@
 # all data files
-data/
+/data/
 resources/
 tools/
 wandb/

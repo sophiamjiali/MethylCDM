@@ -1,7 +1,5 @@
 # Instructions
 
-Instructions for an oblivious developer (me)
-
 ## 1. Download and process DNA methylation data
 
 ```
