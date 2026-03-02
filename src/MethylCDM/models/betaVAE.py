@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from warmup_scheduler import GradualWarmupScheduler
+import math
 
 # =====| Encoder Class |========================================================
 
@@ -23,21 +24,37 @@ class MethylEncoder(nn.Module):
     def __init__(self,
                  input_dim: int,
                  latent_dim: int,
-                 hidden_dims: list):
+                 hidden_dims: list
+                 input_dropout: float = 0.1):
+        """
+        Parameters
+        ----------
+        input_dim     : Number of CpG probes (e.g. 211580)
+        latent_dim    : Dimension of the bottleneck layer fed into z_mu/z_logvar
+        hidden_dims   : List of hidden layer widths for gradual compression.
+                        Recommended ranges to sweep:
+                          [1024, 256, 128]
+                          [2048, 512, 128]
+                          [2048, 1024, 256, 128]
+        input_dropout : Dropout applied to the raw input only.
+                        Sweep: [0.1, 0.2, 0.3]. Default 0.1.
+        """
+
         super(MethylEncoder, self).__init__()
 
         self.input_dim = input_dim
         self.latent_dim = latent_dim
 
         # Build the encoder architecture
-        modules = [nn.Sequential(nn.Dropout())]
-        curr_ch = input_dim
+        modules = [nn.Dropout(p = input_dropout)]
+
+        curr_ch = input_dims
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
                     nn.Linear(curr_ch, h_dim),
-                    nn.BatchNorm1d(h_dim),
-                    nn.LeakyReLU()
+                    nn.LayerNorm(h_dim),
+                    nn.GELU()
                 )
             )
             curr_ch = h_dim
@@ -45,8 +62,8 @@ class MethylEncoder(nn.Module):
         # Last layer interfaces with the latent dimension
         modules.append(nn.Sequential(
             nn.Linear(curr_ch, self.latent_dim),
-            nn.BatchNorm1d(self.latent_dim),
-            nn.LeakyReLU()
+            nn.LayerNorm(self.latent_dim),
+            nn.GELU()
         ))
         self.encoder = nn.Sequential(*modules)
 
@@ -60,6 +77,15 @@ class MethylDecoder(nn.Module):
                  input_dim: int,
                  latent_dim: int,
                  hidden_dims: list):
+        """
+        Parameters
+        ----------
+        input_dim   : Number of CpG probes (reconstruction target)
+        latent_dim  : Dimensionality of latent z
+        hidden_dims : Hidden layer widths (mirror of encoder, reversed).
+                      E.g. if encoder_dims=[1024,256,128], pass decoder_dims=[256,1024]
+        """
+    
         super(MethylDecoder, self).__init__()
 
         self.input_dim = input_dim
@@ -71,9 +97,11 @@ class MethylDecoder(nn.Module):
         curr_ch = self.latent_dim
         for h_dim in self.hidden_dims:
             modules.append(
-                nn.Sequential(nn.Linear(curr_ch, h_dim),
-                              nn.BatchNorm1d(h_dim),
-                              nn.LeakyReLU())
+                nn.Sequential(
+                    nn.Linear(curr_ch, h_dim),      
+                    nn.BatchNorm1d(h_dim),    
+                    nn.GELU()
+                )
             )
             curr_ch = h_dim
 
@@ -98,20 +126,43 @@ class BetaVAE(pl.LightningModule):
                  encoder_dims: list,
                  decoder_dims: list,
                  beta: float = 0.005,
+                 input_dropout: float = 0.1,
+                 num_cycles: int = 4,
                  lr: float = 3e-3):
+        """
+        Parameters
+        ----------
+        input_dim     : Number of CpG probes
+        latent_dim    : Latent space dimensionality.
+                        Sweep: [64, 128, 256]. Default 128.
+        encoder_dims  : Hidden layer widths for encoder.
+                        Sweep: [1024,256,128] | [2048,512,128] | [2048,1024,256,128]
+        decoder_dims  : Hidden layer widths for decoder (typically reversed encoder).
+                        E.g. encoder [2048,512,128] → decoder [512,2048]
+        beta          : Maximum KL weight for cyclical annealing.
+                        Sweep: [0.001, 0.005, 0.01]. Default 0.005.
+        input_dropout : Dropout on raw CpG input.
+                        Sweep: [0.1, 0.2, 0.3]. Default 0.1.
+        num_cycles    : Number of cyclical annealing cycles over full training.
+                        Sweep: [2, 4]. Default 4.
+        lr            : Adam learning rate. Default 3e-3.
+        """
+        
         super(BetaVAE, self).__init__()
 
         # Save hyperparameters for reproducibility and logging
         self.save_hyperparameters()
 
         # Initialize model components
-        self.encoder = MethylEncoder(input_dim, latent_dim, encoder_dims)
+        self.encoder = MethylEncoder(input_dim, latent_dim, encoder_dims, input_dropout)
         self.z_mu = nn.Linear(latent_dim, latent_dim)
         self.z_logvar = nn.Linear(latent_dim, latent_dim)
         self.decoder = MethylDecoder(input_dim, latent_dim, decoder_dims)
 
         # Initialize the linear layers using Xavier Initialization
         self.apply(self._init_weights)
+
+    # -------------------------------------------------------------------------
 
     def encode(self, x):
         z = self.encoder(x)
@@ -128,73 +179,78 @@ class BetaVAE(pl.LightningModule):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mu + eps * std
+
+    # -------------------------------------------------------------------------
     
-    
-    def sample(self,
-               num_samples: int,
-               current_device: int,
-               interpolation: Tensor = None,
-               alpha: float = 1.0) -> Tensor:
+    def get_beta(self) -> float:
         """
-        Samples from the latent space and returns the corresponding gene 
-        expression.
+        Cyclical annealing schedule (Fu et al., 2019).
 
-        Parameters
-        ----------
-        num_samples (int): number of samples
-        current_device (int): device to run the model
-        interpolation (Tensor): difference to move samples in the latent space
-        alpha (float): weight for moving in the latent space
+        Within each cycle, beta ramps linearly from 0 → beta_max over the
+        first half of the cycle, then holds at beta_max for the second half.
+        This prevents posterior collapse by periodically releasing KL pressure,
+        ensuring all latent dimensions remain active — important for a
+        downstream diffusion model that relies on a well-utilised latent space.
 
-        Returns
-        -------
-        (Tensor): gene expression corresponding to the latent space
+        Sweep num_cycles ∈ [2, 4], beta_max ∈ [0.001, 0.005, 0.01].
         """
+        
+        total_steps = self.trainer.estimated_stepping_batches
+        cycle_len   = total_steps / self.hparams.num_cycles
+        
+        # Position within the current cycle [0, 1)
+        cycle_pos   = (self.global_step % math.ceil(cycle_len)) / cycle_len
+        
+        # Linear ramp for first half of cycle, hold at max for second half
+        annealed    = min(1.0, cycle_pos * 2.0)
+        
+        return self.hparams.beta * annealed
 
-        z = torch.randn(num_samples, self.hparams.latent_dim)
-        z = z.to(current_device)
-
-        if interpolation is not None:
-            z = (z + torch.from_numpy(alpha * interpolation)
-                    .float().to(current_device))
-            
-        samples = self.decoder(z)
-        return samples
+    # -------------------------------------------------------------------------
     
-
     def forward(self, x):
-        z_mu, z_log_var, z = self.encode(x)
+        z_mu, z_log_var, _ = self.encode(x)
         z = self.reparameterize(z_mu, z_log_var)
         x_hat = self.decoder(z)
 
         return x_hat, z_mu, z_log_var
-    
 
+    
     def compute_loss(self, x, x_hat, mu, logvar):
-        recon_loss = F.mse_loss(x_hat, x)
+        """
+        BCE reconstruction loss — appropriate for bounded beta values [0,1]
+        and the bimodal/trimodal distribution of DNA methylation data.
+        Paired naturally with the Sigmoid output of the decoder.
+        """
+        
+        recon_loss = F.binary_cross_entropy(x_hat, x, reduction = "mean")
         kld_loss = torch.mean(
             -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim = 1),
             dim = 0
         )
-        total_loss = recon_loss + self.hparams.beta * kld_loss
+        
+        beta = self.get_beta()
+        total_loss = recon_loss + beta * kld_loss
 
         return {
             'total_loss': total_loss,
             'reconstruction_loss': recon_loss,
-            'kl_loss': kld_loss
+            'kl_loss': kld_loss,
+            'beta': beta
         }
 
-
+    # -------------------------------------------------------------------------
+    
     def training_step(self, batch, batch_idx):
         x = batch['methylation_data']
         x_hat, mu, logvar = self(x)
         losses = self.compute_loss(x, x_hat, mu, logvar)
 
-        self.log('train_loss', losses['total_loss'], prog_bar = True)
-        self.log('train_recon', losses['reconstruction_loss'])
-        self.log('train_kl', losses['kl_loss'])
-        self.log('train_kl_per_dim', 
-                 losses['kl_loss'] / self.hparams.latent_dim)
+        self.log('train_loss',       losses['total_loss'], prog_bar = True)
+        self.log('train_recon',      losses['reconstruction_loss'])
+        self.log('train_kl',         losses['kl_loss'])
+        self.log('train_kl_per_dim', losses['kl_loss'] / self.hparams.latent_dim)
+        selflog('beta',              losses['beta'])
 
         return losses['total_loss']
     
@@ -204,30 +260,24 @@ class BetaVAE(pl.LightningModule):
         x_hat, mu, logvar = self(x)
         losses = self.compute_loss(x, x_hat, mu, logvar)
 
-        self.log('val_loss', losses['total_loss'], prog_bar = True)
-        self.log('val_recon', losses['reconstruction_loss'])
-        self.log('val_kl', losses['kl_loss'])
-        self.log('val_kl_per_dim', 
-                 losses['kl_loss'] / self.hparams.latent_dim)
+        self.log('val_loss',       losses['total_loss'], prog_bar = True)
+        self.log('val_recon',      losses['reconstruction_loss'])
+        self.log('val_kl',         losses['kl_loss'])
+        self.log('val_kl_per_dim', losses['kl_loss'] / self.hparams.latent_dim)
 
+    
     def test_step(self, batch, batch_idx):
         x = batch["methylation_data"]
         x_hat, mu, logvar = self(x)
         losses = self.compute_loss(x, x_hat, mu, logvar)
         self.log('test_loss', losses['total_loss'])
-    
+
+    # -------------------------------------------------------------------------
 
     def configure_optimizers(self):
         """
-        Configures the optimizer and learning rate scheduler for training.
-
-        Uses the Adam optimizer with learning rate defined by `self.hparams.lr`.
-        Implements a linear warm-up for the first few steps followed by a cosine annealing schedule for the remainder of training.
-
-        Returns
-        -------
-        (dict): Dictionary containing the optimizer, LR scheduler, and 
-                scheduling for PyTorch Lightning Compatibility
+        Adam optimizer with linear warm-up + cosine annealing LR schedule.
+        Warm-up covers the first 5% of training steps.
         """
 
         # Initialize the Adam Optimizer
@@ -253,6 +303,37 @@ class BetaVAE(pl.LightningModule):
                 "monitor": "val_loss"
             }
         }
+
+    # -------------------------------------------------------------------------
+        
+    def sample(self,
+               num_samples: int,
+               current_device: int,
+               interpolation: Tensor = None,
+               alpha: float = 1.0) -> Tensor:
+        """
+        Samples from the latent space and returns reconstructed methylation profiles.
+
+        Parameters
+        ----------
+        num_samples    : Number of samples to generate
+        current_device : Device index
+        interpolation  : Direction vector to shift samples in latent space
+        alpha          : Step size for latent interpolation
+
+        Returns
+        -------
+        Tensor : Reconstructed methylation profiles of shape (num_samples, input_dim)
+        """
+        
+        z = torch.randn(num_samples, self.hparams.latent_dim).to(current_device)
+
+        if interpolation is not None:
+            z = z + torch.from_numpy(alpha * interpolation).float().to(current_device)
+
+        return self.decoder(z)
+
+    # -------------------------------------------------------------------------
     
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
