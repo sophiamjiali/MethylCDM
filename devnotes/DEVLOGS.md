@@ -45,7 +45,29 @@
 
 ------------------------------------------------------------------------------------------------------------
 
-
+### 03/02/2025 - Log 16: Finished MethylTrain, returning to MethylCDM
+- beta-VAE changes from original (RNA-CDM inspired) design:
+    - (NOTE) loss is kept at MSE because data is now M-values, rather than BCE
+    - input dropout rate from default 0.5 to sweep parameter (0.1-0.2)
+    - beta scheduling from fixed to cyclical annealing, added to sweep (num_cycles)
+    - normalzed the encoder from BatchNorm1d to LayerNorm for encoder only
+    - switched LeakyReLU activation to GELU everywhere
+    - switched latent dimension range to 64-256
+    - added encoder/decoder dims to the sweep
+- Optuna objective changes from original design:
+    - added sweep params added to the model updates
+    - derive decoder dims automatically from encoder dims (reversed)
+    - batch_size constrained to powers of two for GPU memory efficiency
+    - replaced batch_size suggest_int to suggest_categorical
+    - added MedianPruner-aware reporting
+- Dataset changes:
+    - asserts beta values are in [0, 1]
+- Callback and logger changes:
+    - increased EarlyStopping patience from 20 to 30
+    - changed EarlyStopping min_delta to 1e-5
+    - added save_weights_only=True to ModelCheckpoint
+    - added GradientNormCallback to log the gradient norm per step
+    - added SpikeDetectionCallback to monitor anomalous spikes
 
 ### 01/01/2025 - Log 15:
 - finished downloading and reconciling, split into train-val-test datasets

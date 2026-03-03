@@ -5,6 +5,7 @@ tools/
 wandb/
 models/
 logs/
+experiments/
 
 # macOS
 .DS_Store

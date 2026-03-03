@@ -11,7 +11,7 @@
 # ==============================================================================
 
 from torch import Tensor
-import lightning.pytorch as pl
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,12 +24,12 @@ class MethylEncoder(nn.Module):
     def __init__(self,
                  input_dim: int,
                  latent_dim: int,
-                 hidden_dims: list
+                 hidden_dims: list,
                  input_dropout: float = 0.1):
         """
         Parameters
         ----------
-        input_dim     : Number of CpG probes (e.g. 211580)
+        input_dim     : Number of CpG probes (e.g. 211580 for train)
         latent_dim    : Dimension of the bottleneck layer fed into z_mu/z_logvar
         hidden_dims   : List of hidden layer widths for gradual compression.
                         Recommended ranges to sweep:
@@ -48,7 +48,7 @@ class MethylEncoder(nn.Module):
         # Build the encoder architecture
         modules = [nn.Dropout(p = input_dropout)]
 
-        curr_ch = input_dims
+        curr_ch = input_dim
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
@@ -105,11 +105,8 @@ class MethylDecoder(nn.Module):
             )
             curr_ch = h_dim
 
-        # Last layer interfaces with the latent dimension
-        modules.append(nn.Sequential(
-            nn.Linear(curr_ch, self.input_dim), 
-            nn.Sigmoid()
-        ))
+        # Last layer w/o activation, M-values are unbounded
+        modules.append(nn.Linear(curr_ch, self.input_dim))
         
         self.decoder = nn.Sequential(*modules)
 
@@ -218,12 +215,12 @@ class BetaVAE(pl.LightningModule):
     
     def compute_loss(self, x, x_hat, mu, logvar):
         """
-        BCE reconstruction loss — appropriate for bounded beta values [0,1]
-        and the bimodal/trimodal distribution of DNA methylation data.
-        Paired naturally with the Sigmoid output of the decoder.
+        MSE reconstruction loss — correct for unbounded continuous M-values.
+        Assumes a Gaussian decoder p(x|z), consistent with the linear
+        (no activation) decoder output layer.
         """
         
-        recon_loss = F.binary_cross_entropy(x_hat, x, reduction = "mean")
+        recon_loss = F.mse_loss(x_hat, x, reduction = "mean")
         kld_loss = torch.mean(
             -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim = 1),
             dim = 0
@@ -250,7 +247,7 @@ class BetaVAE(pl.LightningModule):
         self.log('train_recon',      losses['reconstruction_loss'])
         self.log('train_kl',         losses['kl_loss'])
         self.log('train_kl_per_dim', losses['kl_loss'] / self.hparams.latent_dim)
-        selflog('beta',              losses['beta'])
+        self.log('beta',             losses['beta'])
 
         return losses['total_loss']
     
@@ -289,7 +286,7 @@ class BetaVAE(pl.LightningModule):
         )
 
         # Initialize the Warm-up Scheduler
-        warmup_steps = int(0.05 * self.trainer.estimated_stepping_batches)
+        warmup_steps = max(1, int(0.05 * self.trainer.estimated_stepping_batches))
         scheduler = GradualWarmupScheduler(
             optimizer, multiplier = 1, total_epoch = warmup_steps, 
             after_scheduler = cosine_scheduler
@@ -312,7 +309,7 @@ class BetaVAE(pl.LightningModule):
                interpolation: Tensor = None,
                alpha: float = 1.0) -> Tensor:
         """
-        Samples from the latent space and returns reconstructed methylation profiles.
+        Samples from the latent space and returns reconstructed M-value profiles.
 
         Parameters
         ----------
@@ -323,9 +320,8 @@ class BetaVAE(pl.LightningModule):
 
         Returns
         -------
-        Tensor : Reconstructed methylation profiles of shape (num_samples, input_dim)
+        Tensor : Reconstructed M-value profiles of shape (num_samples, input_dim)
         """
-        
         z = torch.randn(num_samples, self.hparams.latent_dim).to(current_device)
 
         if interpolation is not None:
