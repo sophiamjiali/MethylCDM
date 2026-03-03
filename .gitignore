@@ -4,6 +4,7 @@ resources/
 tools/
 wandb/
 models/
+logs/
 
 # macOS
 .DS_Store
