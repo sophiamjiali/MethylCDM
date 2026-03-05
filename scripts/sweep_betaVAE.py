@@ -72,6 +72,12 @@ def parse_args():
         help="Random trials before TPE activates. Default 10 for a "
              "7-dimensional search space."
     )
+    parser.add_argument(
+        "--study_name", type=str, default=None,
+        help="Existing study name to load. Required for --report_only. "
+             "If not provided, a new study name is generated (for job array use)."
+    )
+    
     return parser.parse_args()
 
 
@@ -181,7 +187,10 @@ def main():
     experiment_dir = resolve_path(experiment_dir, BETAVAE_SWEEP_DIR)
     Path(experiment_dir).mkdir(parents=True, exist_ok=True)
 
-    study_name = get_or_create_study_name(experiment_dir)
+    if args.study_name:
+        study_name = args.study_name
+    else:
+        study_name = get_or_create_study_name(experiment_dir)
     db_path    = os.path.join(experiment_dir, f"{study_name}.db")
     storage    = f"sqlite:///{db_path}"
 
