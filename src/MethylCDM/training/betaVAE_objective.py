@@ -137,11 +137,18 @@ def objective(trial, study_name, config):
 
         # Fetch validation metrics
         val_loss = trainer.callback_metrics.get('val_loss')
+        mean_post_var_raw = trainer.callback_metrics.get('mean_posterior_var')
+        mean_post_var = mean_post_var_raw.item() if mean_post_var_raw is not None else 0.0
+        
         if val_loss is None:
             raise optuna.exceptions.TrialPruned(
                 f"Trial {trial.number}: val_loss not found in callback_metrics"
             )
         val_loss = val_loss.item()
+
+        # Penalise trials where posterior var is critically low
+        if mean_post_var < 0.1:
+            return float('inf')   # Force Optuna to discard this trial
 
         trial.report(val_loss, step = config['max_epochs'])
         if trial.should_prune():

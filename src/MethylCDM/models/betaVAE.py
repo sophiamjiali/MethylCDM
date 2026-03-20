@@ -243,11 +243,12 @@ class BetaVAE(pl.LightningModule):
         x_hat, mu, logvar = self(x)
         losses = self.compute_loss(x, x_hat, mu, logvar)
 
-        self.log('train_loss',       losses['total_loss'], prog_bar = True)
-        self.log('train_recon',      losses['reconstruction_loss'])
-        self.log('train_kl',         losses['kl_loss'])
-        self.log('train_kl_per_dim', losses['kl_loss'] / self.hparams.latent_dim)
-        self.log('beta',             losses['beta'])
+        self.log('train_loss',         losses['total_loss'], prog_bar = True)
+        self.log('train_recon',        losses['reconstruction_loss'])
+        self.log('train_kl',           losses['kl_loss'])
+        self.log('train_kl_per_dim',   losses['kl_loss'] / self.hparams.latent_dim)
+        self.log('beta',               losses['beta'])
+        self.log('train_post_var',     logvar.exp().mean())
 
         return losses['total_loss']
     
@@ -261,13 +262,14 @@ class BetaVAE(pl.LightningModule):
         self.log('val_recon',      losses['reconstruction_loss'])
         self.log('val_kl',         losses['kl_loss'])
         self.log('val_kl_per_dim', losses['kl_loss'] / self.hparams.latent_dim)
-
+        self.log('mean_posterior_var', logvar.exp().mean(), prog_bar=True)
     
     def test_step(self, batch, batch_idx):
         x = batch["methylation_data"]
         x_hat, mu, logvar = self(x)
         losses = self.compute_loss(x, x_hat, mu, logvar)
         self.log('test_loss', losses['total_loss'])
+        self.log('test_post_var',      logvar.exp().mean())
 
     # -------------------------------------------------------------------------
 
